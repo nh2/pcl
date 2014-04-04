@@ -300,7 +300,8 @@ find_package(Qhull)
 include("${PCL_SOURCE_DIR}/cmake/pcl_find_cuda.cmake")
 
 # Find Qt5
-include(cmake/pcl_find_qt5.cmake)
+# nh2: Use Qt4 instead due to https://github.com/PointCloudLibrary/pcl/issues/477
+#include(cmake/pcl_find_qt5.cmake)
 
 # Find QT4
 if(NOT QT5_FOUND)
