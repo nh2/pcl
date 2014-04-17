@@ -1005,6 +1005,7 @@ struct KinFuApp
     cout << "=================" << endl;
     cout << "    H    : print this help" << endl;
     cout << "   Esc   : exit" << endl;
+    cout << "    R    : reset" << endl;
     cout << "    T    : take cloud" << endl;
     cout << "    A    : take mesh" << endl;
     cout << "    M    : toggle cloud exctraction mode" << endl;
@@ -1073,6 +1074,7 @@ struct KinFuApp
       case (int)'m': case (int)'M': app->scene_cloud_view_.toggleExtractionMode (); break;
       case (int)'n': case (int)'N': app->scene_cloud_view_.toggleNormals (); break;      
       case (int)'c': case (int)'C': app->scene_cloud_view_.clearClouds (true); break;
+      case (int)'r': case (int)'R': app->kinfu_.reset(); break;
       case (int)'i': case (int)'I': app->toggleIndependentCamera (); break;
       case (int)'b': case (int)'B': app->scene_cloud_view_.toggleCube(app->kinfu_.volume().getSize()); break;
       case (int)'7': case (int)'8': app->writeMesh (key - (int)'0'); break;
