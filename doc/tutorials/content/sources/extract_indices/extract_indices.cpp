@@ -1,5 +1,6 @@
 #include <iostream>
 #include <stdexcept>
+#include <pcl/common/intersections.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
@@ -83,6 +84,8 @@ main (int argc, char** argv)
   // Create the filtering object
   pcl::ExtractIndices<pcl::PointXYZ> extract;
 
+  std::vector<Eigen::Vector4f> planes;
+
   int i = 0, nr_points = (int) cloud_filtered->points.size ();
   // While (rest_ratio * 100%) of the original cloud is still there
   while (cloud_filtered->points.size () > rest_ratio * nr_points)
@@ -97,6 +100,8 @@ main (int argc, char** argv)
     }
 
     std::cout << "Cloud " << i << " coefficients: " << *coefficients << std::endl;
+
+    planes.push_back(Eigen::Vector4f::Map(&coefficients->values[0]));
 
     // Extract the inliers
     extract.setInputCloud (cloud_filtered);
@@ -115,6 +120,48 @@ main (int argc, char** argv)
     cloud_filtered.swap (cloud_f);
     i++;
   }
+
+  if (planes.size() < 3)
+  {
+    std::cout << "Not enough planes" << std::endl;
+  }
+  else
+  {
+    std::cout << "Cutting planes" << std::endl;
+
+    Eigen::VectorXf cut_line1;
+    bool ok1 = pcl::planeWithPlaneIntersection (planes[0], planes[1], cut_line1, 0.1);
+
+    Eigen::VectorXf cut_line2;
+    bool ok2 = pcl::planeWithPlaneIntersection (planes[0], planes[2], cut_line2, 0.1);
+
+    if (!ok1 || !ok2)
+    {
+      std::cout << "cut failed" << std::endl;
+    }
+    else
+    {
+      std::cout << std::endl << "cut line 1:" << std::endl << cut_line1 << std::endl;
+      std::cout << std::endl << "cut line 2:" << std::endl << cut_line2 << std::endl;
+
+      Eigen::Vector4f corner;
+      bool ok3 = pcl::lineWithLineIntersection (cut_line1, cut_line2, corner, 1e-4);
+
+      if (!ok3)
+      {
+        std::cout << std::endl << "finding corner failed" << std::endl;
+      }
+      else
+      {
+        std::cout << std::endl << "corner point:" << std::endl << corner << std::endl;
+
+        pcl::PointCloud<pcl::PointXYZ> corner_cloud;
+        corner_cloud.push_back (pcl::PointXYZ (corner[0], corner[1], corner[2]));
+        writer.write<pcl::PointXYZ> ("cloud_corners.pcd", corner_cloud, true);
+      }
+    }
+  }
+
 
   return (0);
 }
