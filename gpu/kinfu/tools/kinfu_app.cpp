@@ -654,7 +654,7 @@ struct KinFuApp
     kinfu_.volume().setSize (volume_size);
 
     Eigen::Matrix3f R = Eigen::Matrix3f::Identity ();   // * AngleAxisf( pcl::deg2rad(-30.f), Vector3f::UnitX());
-    Eigen::Vector3f t = volume_size * 0.5f - Vector3f (0, 0, volume_size (2) / 2 * 1.2f);
+    Eigen::Vector3f t = volume_size * 0.5f; // - Vector3f (0, 0, volume_size (2) / 2 * 1.2f);
 
     Eigen::Affine3f pose = Eigen::Translation3f (t) * Eigen::AngleAxisf (R);
 
