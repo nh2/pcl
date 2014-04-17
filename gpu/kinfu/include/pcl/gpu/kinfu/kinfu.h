@@ -199,6 +199,11 @@ namespace pcl
         /** \brief Disables ICP forever */
         void disableIcp();
 
+        /** \brief Performs the tracker reset to initial  state. It's used if case of camera tracking fail or when the user chooses so.
+          */
+        void
+        reset ();
+
       private:
         
         /** \brief Number of pyramid levels */
@@ -289,11 +294,6 @@ namespace pcl
           */
         void
         allocateBufffers (int rows_arg, int cols_arg);
-
-        /** \brief Performs the tracker reset to initial  state. It's used if case of camera tracking fail.
-          */
-        void
-        reset ();
 
 public:
 EIGEN_MAKE_ALIGNED_OPERATOR_NEW
