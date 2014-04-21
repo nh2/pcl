@@ -1250,8 +1250,13 @@ main (int argc, char* argv[])
   if (pc::find_switch (argc, argv, "--registration") || pc::find_switch (argc, argv, "-r"))  
     app.initRegistration();
       
-  if (pc::find_switch (argc, argv, "--integrate-colors") || pc::find_switch (argc, argv, "-ic"))
+  if (pc::find_switch (argc, argv, "--integrate-colors") || pc::find_switch (argc, argv, "-ic")) {
+    if (!app.registration_) {
+      pc::print_error("--integrate-colors requires --registration\n");
+      return -1;
+    }
     app.toggleColorIntegration();
+  }
 
   if (pc::find_switch (argc, argv, "--scale-truncation") || pc::find_switch (argc, argv, "-st"))
     app.enableTruncationScaling();
