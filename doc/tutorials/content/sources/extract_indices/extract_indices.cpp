@@ -11,8 +11,8 @@ int plane_colors[num_colors][3] = {
 int
 main (int argc, char** argv)
 {
-  pcl::PCLPointCloud2::Ptr cloud_blob (new pcl::PCLPointCloud2),
-                           cloud_filtered_blob (new pcl::PCLPointCloud2);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_blob (new pcl::PointCloud<pcl::PointXYZ>),
+                                      cloud_filtered_blob (new pcl::PointCloud<pcl::PointXYZ>);
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>),
                                       cloud_p (new pcl::PointCloud<pcl::PointXYZ>),
                                       cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
@@ -44,19 +44,18 @@ main (int argc, char** argv)
   if (downsample)
   {
     // Create the filtering object: downsample the dataset using a leaf size of 1cm
-    pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+    pcl::VoxelGrid<pcl::PointXYZ> sor;
     sor.setInputCloud (cloud_blob);
     sor.setLeafSize (downsample_size, downsample_size, downsample_size);
     sor.filter (*cloud_filtered_blob);
 
-    // Convert to the templated PointCloud
-    pcl::fromPCLPointCloud2 (*cloud_filtered_blob, *cloud_filtered);
+    *cloud_filtered = *cloud_filtered_blob;
 
     std::cerr << "PointCloud after filtering: " << cloud_filtered->width * cloud_filtered->height << " data points." << std::endl;
   }
   else
   {
-    pcl::fromPCLPointCloud2 (*cloud_blob, *cloud_filtered);
+    *cloud_filtered = *cloud_filtered_blob;
   }
 
   // Write the downsampled version to disk
