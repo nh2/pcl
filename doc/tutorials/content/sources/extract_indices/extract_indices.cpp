@@ -36,8 +36,7 @@ main (int argc, char** argv)
   bool downsample = downsample_size != atof("0");
 
   // Fill in the cloud data
-  pcl::PCDReader reader;
-  reader.read (filename, *cloud_blob);
+  pcl::io::loadPCDFile (filename, *cloud_blob);
 
   std::cerr << "PointCloud: " << cloud_blob->width * cloud_blob->height << " data points." << std::endl;
 
