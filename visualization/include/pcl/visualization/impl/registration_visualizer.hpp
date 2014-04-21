@@ -91,7 +91,7 @@ pcl::RegistrationVisualizer<PointSource, PointTarget>::runDisplay ()
   viewer_->addText ("Blue   -> target", 10, 30, 0.0, 0.0, 1.0, "legend target v2", v2);
   viewer_->addText ("Red    -> source", 10, 10, 1.0, 0.0, 0.0, "legend source v2", v1);
 
-//    viewer_->addPointCloud<PointSource> (cloud_source_.makeShared (), cloud_source_handler_, "cloud source v2", v2);
+  viewer_->addPointCloud<PointSource> (cloud_source_.makeShared (), cloud_source_handler_, "cloud source v2", v2);
   viewer_->addPointCloud<PointTarget> (cloud_target_.makeShared (), cloud_target_handler_, "cloud target v2", v2);
   viewer_->addPointCloud<PointSource> (cloud_intermediate_.makeShared (), cloud_intermediate_handler_,
                                        "cloud intermediate v2", v2);
