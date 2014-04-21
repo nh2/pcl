@@ -1,5 +1,13 @@
 #include "extract_indices.h"
 
+const int num_colors = 4;
+int plane_colors[num_colors][3] = {
+  {   0, 255,   0 },
+  {   0, 255, 255 },
+  {   0,   0, 255 },
+  { 255,   0, 255 },
+};
+
 int
 main (int argc, char** argv)
 {
@@ -99,9 +107,24 @@ main (int argc, char** argv)
     extract.filter (*cloud_p);
     std::cerr << "PointCloud representing the planar component: " << cloud_p->width * cloud_p->height << " data points." << std::endl;
 
+    // Set plane color
+    pcl::PointCloud<pcl::PointXYZRGB> cloud_colored;
+    for (int pi = 0; pi < cloud_p->size(); ++pi)
+    {
+      pcl::PointXYZ p = (*cloud_p)[pi];
+      pcl::PointXYZRGB cp (plane_colors[i % num_colors][0],
+                           plane_colors[i % num_colors][1],
+                           plane_colors[i % num_colors][2]);
+      cp.x = p.x;
+      cp.y = p.y;
+      cp.z = p.z;
+      cloud_colored.push_back(cp);
+    }
+
     std::stringstream ss;
     ss << "cloud_plane_" << i << ".pcd";
-    pcl::io::savePCDFile (ss.str (), *cloud_p, true);
+    // pcl::io::savePCDFile (ss.str (), *cloud_p, true);
+    pcl::io::savePCDFile (ss.str (), cloud_colored, true);
 
     // Create the filtering object
     extract.setNegative (true);
@@ -144,9 +167,16 @@ main (int argc, char** argv)
       {
         std::cout << std::endl << "corner point:" << std::endl << corner << std::endl;
 
-        pcl::PointCloud<pcl::PointXYZ> corner_cloud;
-        corner_cloud.push_back (pcl::PointXYZ (corner[0], corner[1], corner[2]));
-        pcl::io::savePCDFile ("cloud_corners.pcd", corner_cloud, true);
+        pcl::PointXYZ corner_point (corner[0], corner[1], corner[2]);
+
+        pcl::PointXYZRGB corner_point_color(255,0,0);
+        corner_point_color.x = corner_point.x;
+        corner_point_color.y = corner_point.y;
+        corner_point_color.z = corner_point.z;
+
+        pcl::PointCloud<pcl::PointXYZRGB> corner_cloud;
+        corner_cloud.push_back (corner_point_color);
+        pcl::io::savePCDFile ("cloud_corners.pcd", corner_cloud, false);
       }
     }
   }
