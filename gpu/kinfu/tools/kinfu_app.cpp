@@ -1258,6 +1258,9 @@ main (int argc, char* argv[])
     app.toggleColorIntegration();
   }
 
+  if (pc::find_switch (argc, argv, "--normals") || pc::find_switch (argc, argv, "-n"))
+    app.scene_cloud_view_.toggleNormals();
+
   if (pc::find_switch (argc, argv, "--scale-truncation") || pc::find_switch (argc, argv, "-st"))
     app.enableTruncationScaling();
   
