@@ -52,8 +52,7 @@ main (int argc, char** argv)
   }
 
   // Write the downsampled version to disk
-  pcl::PCDWriter writer;
-  writer.write<pcl::PointXYZ> ("cloud_downsampled.pcd", *cloud_filtered, true);
+  pcl::io::savePCDFile ("cloud_downsampled.pcd", *cloud_filtered, true);
 
   pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients ());
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
@@ -102,7 +101,7 @@ main (int argc, char** argv)
 
     std::stringstream ss;
     ss << "cloud_plane_" << i << ".pcd";
-    writer.write<pcl::PointXYZ> (ss.str (), *cloud_p, true);
+    pcl::io::savePCDFile (ss.str (), *cloud_p, true);
 
     // Create the filtering object
     extract.setNegative (true);
@@ -147,7 +146,7 @@ main (int argc, char** argv)
 
         pcl::PointCloud<pcl::PointXYZ> corner_cloud;
         corner_cloud.push_back (pcl::PointXYZ (corner[0], corner[1], corner[2]));
-        writer.write<pcl::PointXYZ> ("cloud_corners.pcd", corner_cloud, true);
+        pcl::io::savePCDFile ("cloud_corners.pcd", corner_cloud, true);
       }
     }
   }
