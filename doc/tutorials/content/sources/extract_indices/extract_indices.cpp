@@ -133,6 +133,14 @@ main (int argc, char** argv)
     i++;
   }
 
+  std::ofstream planes_file("planes.txt");
+  for (int i = 0; i < planes.size(); ++i)
+  {
+    Eigen::Vector4f p = planes[i];
+    planes_file << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << std::endl;
+  }
+
+
   if (planes.size() < 3)
   {
     std::cout << "Not enough planes" << std::endl;
