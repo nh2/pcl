@@ -11,11 +11,11 @@ int plane_colors[num_colors][3] = {
 int
 main (int argc, char** argv)
 {
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_blob (new pcl::PointCloud<pcl::PointXYZ>),
-                                      cloud_filtered_blob (new pcl::PointCloud<pcl::PointXYZ>);
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>),
-                                      cloud_p (new pcl::PointCloud<pcl::PointXYZ>),
-                                      cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_blob (new pcl::PointCloud<pcl::PointXYZRGBNormal>),
+                                               cloud_filtered_blob (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGBNormal>),
+                                               cloud_p (new pcl::PointCloud<pcl::PointXYZRGBNormal>),
+                                               cloud_f (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
   if (argc != 7)
   {
@@ -43,7 +43,7 @@ main (int argc, char** argv)
   if (downsample)
   {
     // Create the filtering object: downsample the dataset using a leaf size of 1cm
-    pcl::VoxelGrid<pcl::PointXYZ> sor;
+    pcl::VoxelGrid<pcl::PointXYZRGBNormal> sor;
     sor.setInputCloud (cloud_blob);
     sor.setLeafSize (downsample_size, downsample_size, downsample_size);
     sor.filter (*cloud_filtered_blob);
@@ -63,21 +63,32 @@ main (int argc, char** argv)
   pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients ());
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
   // Create the segmentation object
-  pcl::SACSegmentation<pcl::PointXYZ> seg;
-  // pcl::SACSegmentationFromNormals<pcl::PointXYZ, pcl::Normal> seg; // for normals
+  // pcl::SACSegmentation<pcl::PointXYZ> seg;
+  pcl::SACSegmentationFromNormals<pcl::PointXYZRGB, pcl::Normal> seg; // for normals
   // Optional
   seg.setOptimizeCoefficients (optimize_coefficients);
   // Mandatory
-  seg.setModelType (pcl::SACMODEL_PLANE);
-  // seg.setModelType (pcl::SACMODEL_NORMAL_PLANE); // for normals
-  // seg.setNormalDistanceWeight (0.1); // for normals
+  // seg.setModelType (pcl::SACMODEL_PLANE);
+  seg.setModelType (pcl::SACMODEL_NORMAL_PLANE); // for normals
+  seg.setNormalDistanceWeight (0.1); // for normals
 
   seg.setMethodType (pcl::SAC_RANSAC);
   seg.setMaxIterations (max_iterations);
   seg.setDistanceThreshold (distance_threshold);
 
+  // Copy XYZRGBNNormal cloud to two clouds (XYZRGB + Normal) because SACSegmentationFromNormals wants them separate
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered_xyz (new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::Normal>::Ptr      cloud_filtered_normals (new pcl::PointCloud<pcl::Normal>);
+  cloud_filtered_xyz->resize(cloud_filtered->size());
+  cloud_filtered_normals->resize(cloud_filtered->size());
+  for (int i = 0; i < cloud_filtered->size(); ++i)
+  {
+    (*cloud_filtered_xyz)[i].getVector4fMap() = (*cloud_filtered)[i].getVector4fMap();
+    (*cloud_filtered_normals)[i].getNormalVector4fMap() = (*cloud_filtered)[i].getNormalVector4fMap();
+  }
+
   // Create the filtering object
-  pcl::ExtractIndices<pcl::PointXYZ> extract;
+  pcl::ExtractIndices<pcl::PointXYZRGBNormal> extract;
 
   std::vector<Eigen::Vector4f> planes;
 
@@ -86,7 +97,9 @@ main (int argc, char** argv)
   while (cloud_filtered->points.size () > rest_ratio * nr_points)
   {
     // Segment the largest planar component from the remaining cloud
-    seg.setInputCloud (cloud_filtered);
+    // seg.setInputCloud (cloud_filtered);
+    seg.setInputCloud (cloud_filtered_xyz);
+    seg.setInputNormals (cloud_filtered_normals); // for normals
     seg.segment (*inliers, *coefficients);
     if (inliers->indices.size () == 0)
     {
@@ -109,7 +122,7 @@ main (int argc, char** argv)
     pcl::PointCloud<pcl::PointXYZRGB> cloud_colored;
     for (int pi = 0; pi < cloud_p->size(); ++pi)
     {
-      pcl::PointXYZ p = (*cloud_p)[pi];
+      pcl::PointXYZRGBNormal p = (*cloud_p)[pi];
       pcl::PointXYZRGB cp (plane_colors[i % num_colors][0],
                            plane_colors[i % num_colors][1],
                            plane_colors[i % num_colors][2]);
@@ -128,6 +141,20 @@ main (int argc, char** argv)
     extract.setNegative (true);
     extract.filter (*cloud_f);
     cloud_filtered.swap (cloud_f);
+
+    pcl::ExtractIndices<pcl::PointXYZRGB> extract_xyz;
+    extract_xyz.setInputCloud (cloud_filtered_xyz);
+    extract_xyz.setIndices (inliers);
+    extract_xyz.setNegative (true);
+    extract_xyz.filter (*cloud_filtered_xyz);
+
+    pcl::ExtractIndices<pcl::Normal> extract_normals;
+    extract_normals.setInputCloud (cloud_filtered_normals);
+    extract_normals.setIndices (inliers);
+    extract_normals.setNegative (true);
+    extract_normals.filter (*cloud_filtered_normals);
+
+
     i++;
   }
 
