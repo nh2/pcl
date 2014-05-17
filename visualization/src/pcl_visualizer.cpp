@@ -1811,6 +1811,8 @@ pcl::visualization::PCLVisualizer::setCameraPosition (
       cam->SetPosition (pos_x, pos_y, pos_z);
       cam->SetFocalPoint (view_x, view_y, view_z);
       cam->SetViewUp (up_x, up_y, up_z);
+
+      cam->SetClippingRange (0.01, 1000.01);
     }
     ++i;
   }
