@@ -105,6 +105,9 @@ namespace openni_wrapper
     bool depth_stream_running_;
     bool image_stream_running_;
     bool ir_stream_running_;
+
+    /** \brief The pixel format of the color image in the file. Only set if the file contains a color image. */
+    XnPixelFormat pixel_format_;
   };
 } //namespace openni_wrapper
 #endif //__OPENNI_DEVICE_ONI__
