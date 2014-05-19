@@ -60,9 +60,7 @@
 #include <pcl/io/openni_grabber.h>
 #include <pcl/io/oni_grabber.h>
 #include <pcl/io/pcd_grabber.h>
-#include <pcl/exceptions.h>
 
-#include "openni_capture.h"
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include "evaluation.h"
 
