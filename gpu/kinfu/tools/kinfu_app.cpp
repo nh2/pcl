@@ -1235,7 +1235,7 @@ main (int argc, char* argv[])
 
   float volume_size = 3.f;
   pc::parse_argument (argc, argv, "-volume_size", volume_size);
-  printf("nh2: volume size %f", volume_size);
+  printf("nh2: volume size %f\n", volume_size);
 
   int icp = 1, visualization = 1;
   std::vector<float> depth_intrinsics;
