@@ -1231,7 +1231,7 @@ main (int argc, char* argv[])
       //triggered_capture = true; capture.reset( new pcl::ONIGrabber("d:/onis/20111013-224719.oni", true, ! triggered_capture) );    
     }
   }
-  catch (const pcl::PCLException& /*e*/) { return cout << "Can't open depth source" << endl, -1; }
+  catch (const pcl::PCLException& e) { return cout << "Can't open depth source" << endl << e.what() << endl, -1; }
 
   float volume_size = 3.f;
   pc::parse_argument (argc, argv, "-volume_size", volume_size);
