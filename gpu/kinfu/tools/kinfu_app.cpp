@@ -855,6 +855,12 @@ struct KinFuApp
       depth_wrapper->fillDepthImageRaw(depth_.cols, depth_.rows, &source_depth_data_[0]);
       depth_.data = &source_depth_data_[0];      
       
+      // openni_wrapper::Image::Encoding enc = image_wrapper->getEncoding();
+      // printf("nh2: source_cb2_device image_wrapper encoding: %s\n",
+      //   enc == openni_wrapper::Image::BAYER_GRBG ? "BAYER_GRBG" :
+      //   enc == openni_wrapper::Image::YUV422     ? "YUV422"     :
+      //   enc == openni_wrapper::Image::RGB        ? "RGB"        : "UNKNOWN_ENCODING");
+
       rgb24_.cols = image_wrapper->getWidth();
       rgb24_.rows = image_wrapper->getHeight();
       rgb24_.step = rgb24_.cols * rgb24_.elemSize(); 
@@ -900,6 +906,12 @@ struct KinFuApp
       depth_wrapper->fillDepthImageRaw(depth_.cols, depth_.rows, &source_depth_data_[0]);
       depth_.data = &source_depth_data_[0];      
       
+      // openni_wrapper::Image::Encoding enc = image_wrapper->getEncoding();
+      // printf("nh2: source_cb2_oni image_wrapper encoding: %s\n",
+      //   enc == openni_wrapper::Image::BAYER_GRBG ? "BAYER_GRBG" :
+      //   enc == openni_wrapper::Image::YUV422     ? "YUV422"     :
+      //   enc == openni_wrapper::Image::RGB        ? "RGB"        : "UNKNOWN_ENCODING");
+
       rgb24_.cols = image_wrapper->getWidth();
       rgb24_.rows = image_wrapper->getHeight();
       rgb24_.step = rgb24_.cols * rgb24_.elemSize(); 
