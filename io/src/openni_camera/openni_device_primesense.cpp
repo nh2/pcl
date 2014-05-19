@@ -77,6 +77,35 @@ openni_wrapper::DevicePrimesense::DevicePrimesense (
   status = depth_generator_.SetIntProperty ("RegistrationType", 1);
   if (status != XN_STATUS_OK)
     THROW_OPENNI_EXCEPTION ("Error setting the registration type. Reason: %s", xnGetStatusString (status));
+
+  status = recorder_.Create (context);
+  if (status != XN_STATUS_OK)
+    THROW_OPENNI_EXCEPTION ("Error creating the recorder. Reason: %s", xnGetStatusString (status));
+
+  // TODO Hardcode. This has to be passed in via constructors somehow.
+  std::string oni_recording_path_ = "/tmp/recording.oni";
+
+  // If a recording is enabled, create an OpenNI recorder node to
+  // simultaneously record the depth and color images.
+  if (oni_recording_path_ != "")
+  {
+    status = recorder_.SetDestination (XN_RECORD_MEDIUM_FILE, oni_recording_path_.c_str());
+    if (status != XN_STATUS_OK)
+      THROW_OPENNI_EXCEPTION ("Error setting the recorder destinations. Reason: %s", xnGetStatusString (status));
+
+    // We use XN_CODEC_NULL to have the compression chosen automatically.
+    status = recorder_.AddNodeToRecording (depth_generator_, XN_CODEC_NULL);
+    if (status != XN_STATUS_OK)
+      THROW_OPENNI_EXCEPTION ("Error adding depth generator to recorder. Reason: %s", xnGetStatusString (status));
+
+    // We use uncompressed. Note that the OpenNI2 NiViewer will give `openDevice failed`
+    // if we choose JPEG here (the default XN_CODEC_NULL also picks JPEG).
+    status = recorder_.AddNodeToRecording (image_generator_, XN_CODEC_UNCOMPRESSED);
+    if (status != XN_STATUS_OK)
+      THROW_OPENNI_EXCEPTION ("Error adding image generator to recorder. Reason: %s", xnGetStatusString (status));
+
+    recorder_created_ = true;
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

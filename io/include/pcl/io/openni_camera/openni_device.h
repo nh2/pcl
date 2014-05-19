@@ -517,6 +517,9 @@ namespace openni_wrapper
       xn::ImageGenerator image_generator_;
       /** \brief IR generator object. */
       xn::IRGenerator ir_generator_;
+      /** \brief Recorder object for simultaneous recording. */
+      xn::Recorder recorder_;
+      bool recorder_created_;
 
       XnCallbackHandle depth_callback_handle_;
       XnCallbackHandle image_callback_handle_;
