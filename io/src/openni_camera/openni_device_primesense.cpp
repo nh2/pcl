@@ -43,7 +43,7 @@
 #endif
 
 #include <pcl/io/openni_camera/openni_device_primesense.h>
-#include <pcl/io/openni_camera/openni_image_yuv_422.h>
+#include <pcl/io/openni_camera/openni_image_rgb24.h>
 #include <iostream>
 #include <sstream>
 #include <pcl/io/boost.h>
@@ -63,13 +63,11 @@ openni_wrapper::DevicePrimesense::DevicePrimesense (
   setIROutputMode (getDefaultIRMode ());
 
   boost::unique_lock<boost::mutex> image_lock (image_mutex_);
-  XnStatus status = image_generator_.SetIntProperty ("InputFormat", 5);
-  if (status != XN_STATUS_OK)
-    THROW_OPENNI_EXCEPTION ("Error setting the image input format to Uncompressed YUV422. Reason: %s", xnGetStatusString (status));
+  XnStatus status = XN_STATUS_OK;
 
-  status = image_generator_.SetPixelFormat (XN_PIXEL_FORMAT_YUV422);
+  status = image_generator_.SetPixelFormat (XN_PIXEL_FORMAT_RGB24);
   if (status != XN_STATUS_OK)
-    THROW_OPENNI_EXCEPTION ("Failed to set image pixel format to YUV422. Reason: %s", xnGetStatusString (status));
+    THROW_OPENNI_EXCEPTION ("Failed to set image pixel format to RGB24. Reason: %s", xnGetStatusString (status));
 
   image_lock.unlock ();
 
@@ -131,7 +129,7 @@ openni_wrapper::DevicePrimesense::isImageResizeSupported (
     unsigned output_width, 
     unsigned output_height) const throw ()
 {
-  return (ImageYUV422::resizingSupported (input_width, input_height, output_width, output_height));
+  return (ImageRGB24::resizingSupported (input_width, input_height, output_width, output_height));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,7 +197,7 @@ openni_wrapper::DevicePrimesense::enumAvailableModes () throw ()
 boost::shared_ptr<openni_wrapper::Image> 
 openni_wrapper::DevicePrimesense::getCurrentImage (boost::shared_ptr<xn::ImageMetaData> image_data) const throw ()
 {
-  return (boost::shared_ptr<openni_wrapper::Image> (new ImageYUV422 (image_data)));
+  return (boost::shared_ptr<openni_wrapper::Image> (new ImageRGB24 (image_data)));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
