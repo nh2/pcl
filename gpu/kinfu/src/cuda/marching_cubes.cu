@@ -344,22 +344,20 @@ namespace pcl
         v[7] = getNodeCoo (x, y + 1, z + 1);
 
         // find the vertices where the surface intersects the cube
-        // use shared memory to avoid using local
-        __shared__ float3 vertlist[12][CTA_SIZE];
+        float3 vertlist[12];
 
-        vertlist[0][tid] = vertex_interp (v[0], v[1], f[0], f[1]);
-        vertlist[1][tid] = vertex_interp (v[1], v[2], f[1], f[2]);
-        vertlist[2][tid] = vertex_interp (v[2], v[3], f[2], f[3]);
-        vertlist[3][tid] = vertex_interp (v[3], v[0], f[3], f[0]);
-        vertlist[4][tid] = vertex_interp (v[4], v[5], f[4], f[5]);
-        vertlist[5][tid] = vertex_interp (v[5], v[6], f[5], f[6]);
-        vertlist[6][tid] = vertex_interp (v[6], v[7], f[6], f[7]);
-        vertlist[7][tid] = vertex_interp (v[7], v[4], f[7], f[4]);
-        vertlist[8][tid] = vertex_interp (v[0], v[4], f[0], f[4]);
-        vertlist[9][tid] = vertex_interp (v[1], v[5], f[1], f[5]);
-        vertlist[10][tid] = vertex_interp (v[2], v[6], f[2], f[6]);
-        vertlist[11][tid] = vertex_interp (v[3], v[7], f[3], f[7]);
-        __syncthreads ();
+        vertlist[0] = vertex_interp (v[0], v[1], f[0], f[1]);
+        vertlist[1] = vertex_interp (v[1], v[2], f[1], f[2]);
+        vertlist[2] = vertex_interp (v[2], v[3], f[2], f[3]);
+        vertlist[3] = vertex_interp (v[3], v[0], f[3], f[0]);
+        vertlist[4] = vertex_interp (v[4], v[5], f[4], f[5]);
+        vertlist[5] = vertex_interp (v[5], v[6], f[5], f[6]);
+        vertlist[6] = vertex_interp (v[6], v[7], f[6], f[7]);
+        vertlist[7] = vertex_interp (v[7], v[4], f[7], f[4]);
+        vertlist[8] = vertex_interp (v[0], v[4], f[0], f[4]);
+        vertlist[9] = vertex_interp (v[1], v[5], f[1], f[5]);
+        vertlist[10] = vertex_interp (v[2], v[6], f[2], f[6]);
+        vertlist[11] = vertex_interp (v[3], v[7], f[3], f[7]);
 
         // output triangle vertices
         int numVerts = tex1Dfetch (numVertsTex, cubeindex);
@@ -372,9 +370,9 @@ namespace pcl
           int v2 = tex1Dfetch (triTex, (cubeindex * 16) + i + 1);
           int v3 = tex1Dfetch (triTex, (cubeindex * 16) + i + 2);
 
-          store_point (output, index + 0, vertlist[v1][tid]);
-          store_point (output, index + 1, vertlist[v2][tid]);
-          store_point (output, index + 2, vertlist[v3][tid]);
+          store_point (output, index + 0, vertlist[v1]);
+          store_point (output, index + 1, vertlist[v2]);
+          store_point (output, index + 2, vertlist[v3]);
         }
       }
 
