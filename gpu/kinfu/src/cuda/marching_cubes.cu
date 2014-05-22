@@ -104,14 +104,14 @@ namespace pcl
 
         // calculate flag indicating if each vertex is inside or outside isosurface
         int cubeindex;
-        cubeindex = int(f[0] < isoValue());
-        cubeindex += int(f[1] < isoValue()) * 2;
-        cubeindex += int(f[2] < isoValue()) * 4;
-        cubeindex += int(f[3] < isoValue()) * 8;
-        cubeindex += int(f[4] < isoValue()) * 16;
-        cubeindex += int(f[5] < isoValue()) * 32;
-        cubeindex += int(f[6] < isoValue()) * 64;
-        cubeindex += int(f[7] < isoValue()) * 128;
+        cubeindex  = int(f[0] < isoValue());
+        cubeindex += int(f[1] < isoValue()) << 1;
+        cubeindex += int(f[2] < isoValue()) << 2;
+        cubeindex += int(f[3] < isoValue()) << 3;
+        cubeindex += int(f[4] < isoValue()) << 4;
+        cubeindex += int(f[5] < isoValue()) << 5;
+        cubeindex += int(f[6] < isoValue()) << 6;
+        cubeindex += int(f[7] < isoValue()) << 7;
 
         return cubeindex;
       }
