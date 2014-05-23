@@ -656,14 +656,23 @@ struct KinFuApp
   enum { PCD_BIN = 1, PCD_ASCII = 2, PLY = 3, MESH_PLY = 7, MESH_VTK = 8 };
   
   KinFuApp(pcl::Grabber& source, float vsz, int icp, int viz) : exit_ (false), scan_ (false), scan_mesh_(false), scan_volume_ (false), independent_camera_ (false),
-    registration_ (false), integrate_colors_ (false), focal_length_(-1.f), capture_ (source), scene_cloud_view_(viz), image_view_(viz), time_ms_(0), icp_(icp), viz_(viz)
+    registration_ (false), integrate_colors_ (false), start_at_side_ (true), focal_length_(-1.f), capture_ (source), scene_cloud_view_(viz), image_view_(viz), time_ms_(0), icp_(icp), viz_(viz)
   {    
     //Init Kinfu Tracker
     Eigen::Vector3f volume_size = Vector3f::Constant (vsz/*meters*/);    
     kinfu_.volume().setSize (volume_size);
 
     Eigen::Matrix3f R = Eigen::Matrix3f::Identity ();   // * AngleAxisf( pcl::deg2rad(-30.f), Vector3f::UnitX());
-    Eigen::Vector3f t = volume_size * 0.5f; // - Vector3f (0, 0, volume_size (2) / 2 * 1.2f);
+
+    Eigen::Vector3f t;
+    if (start_at_side_)
+    {
+      // Start at the center of one side of the scanning volume
+      t = volume_size * 0.5f - Vector3f (0, 0, volume_size (2) / 2 * 1.2f);
+    } else {
+      // Start in center of the scanning volume
+      t = volume_size * 0.5f;
+    }
 
     Eigen::Affine3f pose = Eigen::Translation3f (t) * Eigen::AngleAxisf (R);
 
@@ -1056,6 +1065,7 @@ struct KinFuApp
 
   bool registration_;
   bool integrate_colors_;  
+  bool start_at_side_;
   float focal_length_;
   
   pcl::Grabber& capture_;
@@ -1180,6 +1190,7 @@ print_cli_help ()
   cout << "    --current-cloud, -cc                    : show current frame cloud" << endl;
   cout << "    --save-views, -sv                       : accumulate scene view and save in the end ( Requires OpenCV. Will cause 'bad_alloc' after some time )" << endl;  
   cout << "    --integrate-colors, -ic                 : enable color integration mode (allows to get cloud with colors)" << endl;   
+  cout << "    --start-at-side                         : start at the center of one side of the scanning volume" << endl;
   cout << "    --scale-truncation, -st                 : scale the truncation distance and raycaster based on the volume size" << endl;
   cout << "    -volume_size <size_in_meters>           : define integration volume size" << endl;
   cout << "    --depth-intrinsics <fx>,<fy>[,<cx>,<cy> : set the intrinsics of the depth camera" << endl;
@@ -1284,6 +1295,9 @@ main (int argc, char* argv[])
     }
     app.toggleColorIntegration();
   }
+
+  if (pc::find_switch (argc, argv, "--start-at-side"))
+    app.start_at_side_ = true;
 
   if (pc::find_switch (argc, argv, "--normals") || pc::find_switch (argc, argv, "-n"))
     app.scene_cloud_view_.toggleNormals();
