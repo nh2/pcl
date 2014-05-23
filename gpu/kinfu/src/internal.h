@@ -52,6 +52,7 @@ namespace pcl
     typedef DeviceArray2D<float> MapArr;
     typedef DeviceArray2D<ushort> DepthMap;
     typedef float4 PointType;
+    typedef float4 MeshPointType;
 
     //TSDF fixed point divisor (if old format is enabled)
     const int DIVISOR = 32767;     // SHRT_MAX;
@@ -435,7 +436,7 @@ namespace pcl
       * \param[out] output triangle array            
       */
     void
-    generateTriangles(const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<PointType>& output);
+    generateTriangles(const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<MeshPointType>& output);
   }
 }
 

@@ -288,7 +288,7 @@ namespace pcl
       int voxels_count;
       float3 cell_size;
 
-      mutable PointType *output;
+      mutable MeshPointType *output;
 
       __device__ __forceinline__ float3
       getNodeCoo (int x, int y, int z) const
@@ -377,7 +377,7 @@ namespace pcl
       }
 
       __device__ __forceinline__ void
-      store_point (float4 *ptr, int index, const float3& point) const {
+      store_point (MeshPointType *ptr, int index, const float3& point) const {
         ptr[index] = make_float4 (point.x, point.y, point.z, 1.0f);
       }
     };
@@ -388,7 +388,7 @@ namespace pcl
 
 
 void
-pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<PointType>& output)
+pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<MeshPointType>& output)
 {   
   int device;
   cudaSafeCall( cudaGetDevice(&device) );
