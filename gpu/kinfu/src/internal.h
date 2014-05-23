@@ -436,7 +436,7 @@ namespace pcl
       * \param[out] output triangle array            
       */
     void
-    generateTriangles(const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<MeshPointType>& output);
+    generateTriangles(const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<MeshPointType>& output, const uchar4* colors);
   }
 }
 

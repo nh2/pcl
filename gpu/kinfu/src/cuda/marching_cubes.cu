@@ -290,6 +290,8 @@ namespace pcl
 
       mutable MeshPointType *output;
 
+      const uchar4* colors;
+
       __device__ __forceinline__ float3
       getNodeCoo (int x, int y, int z) const
       {
@@ -329,7 +331,7 @@ namespace pcl
         int y = (voxel - z * VOLUME_X * VOLUME_Y) / VOLUME_X;
         int x = (voxel - z * VOLUME_X * VOLUME_Y) - y * VOLUME_X;
 
-        float f[8];
+        float f[8]; // TSDF value for each of the 8 corners
         int cubeindex = computeCubeIndex (x, y, z, f);
 
         // calculate cell vertex positions
@@ -362,6 +364,10 @@ namespace pcl
         // output triangle vertices
         int numVerts = tex1Dfetch (numVertsTex, cubeindex);
 
+        // TODO nh2: Don't set the center color as the color for the whole
+        //           triangle. Instead interpolate colors for each of its vertices.
+        const uchar4 col = colors[voxel];
+
         for (int i = 0; i < numVerts; i += 3)
         {
           int index = vertex_ofssets[idx] + i;
@@ -370,15 +376,21 @@ namespace pcl
           int v2 = tex1Dfetch (triTex, (cubeindex * 16) + i + 1);
           int v3 = tex1Dfetch (triTex, (cubeindex * 16) + i + 2);
 
-          store_point (output, index + 0, vertlist[v1]);
-          store_point (output, index + 1, vertlist[v2]);
-          store_point (output, index + 2, vertlist[v3]);
+          store_point (output, index + 0, vertlist[v1], col);
+          store_point (output, index + 1, vertlist[v2], col);
+          store_point (output, index + 2, vertlist[v3], col);
         }
       }
 
       __device__ __forceinline__ void
-      store_point (MeshPointType *ptr, int index, const float3& point) const {
-        ptr[index] = make_float4 (point.x, point.y, point.z, 1.0f);
+      store_point (MeshPointType *ptr, int index, const float3& point, const uchar4 col) const {
+        // uint32_t rgba = 0xffFFffFF; // alpha sits to the most left
+        uint32_t rgba =   (( (uint32_t) 0xff)  << 24) // alpha sits to the most left
+                        + (( (uint32_t) col.x) << 16)
+                        + (( (uint32_t) col.y) <<  8)
+                        + (( (uint32_t) col.z));
+        float color = *((float*) &rgba);
+        ptr[index] = make_float4 (point.x, point.y, point.z, color);
       }
     };
     __global__ void
@@ -388,7 +400,7 @@ namespace pcl
 
 
 void
-pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<MeshPointType>& output)
+pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<MeshPointType>& output, const uchar4 *colors)
 {   
   int device;
   cudaSafeCall( cudaGetDevice(&device) );
@@ -409,6 +421,7 @@ pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray
   tg.cell_size.y = volume_size.y / VOLUME_Y;
   tg.cell_size.z = volume_size.z / VOLUME_Z;
   tg.output = output;
+  tg.colors = colors;
 
   int blocks_num = divUp (tg.voxels_count, block_size);
 

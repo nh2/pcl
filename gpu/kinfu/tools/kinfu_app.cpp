@@ -275,15 +275,23 @@ typename PointCloud<MergedT>::Ptr merge(const PointCloud<PointT>& points, const 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-boost::shared_ptr<pcl::PolygonMesh> convertToMesh(const DeviceArray<PointXYZ>& triangles)
+boost::shared_ptr<pcl::PolygonMesh> convertToMesh(const DeviceArray<float4>& device_triangles)
 { 
-  if (triangles.empty())
+  if (device_triangles.empty())
       return boost::shared_ptr<pcl::PolygonMesh>();
 
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-  cloud.width  = (int)triangles.size();
-  cloud.height = 1;
-  triangles.download(cloud.points);
+  vector<float4> triangles(device_triangles.size());
+  device_triangles.download(triangles);
+
+  pcl::PointCloud<pcl::PointXYZRGB> cloud((int)triangles.size(), 1);
+
+  for (int i = 0; i < triangles.size(); ++i)
+  {
+    cloud[i].x   = triangles[i].x;
+    cloud[i].y   = triangles[i].y;
+    cloud[i].z   = triangles[i].z;
+    cloud[i].rgb = triangles[i].w;
+  }
 
   boost::shared_ptr<pcl::PolygonMesh> mesh_ptr( new pcl::PolygonMesh() ); 
   pcl::toPCLPointCloud2(cloud, mesh_ptr->cloud);
@@ -600,7 +608,10 @@ struct SceneCloudView
     if (!marching_cubes_)
       marching_cubes_ = MarchingCubes::Ptr( new MarchingCubes() );
 
-    DeviceArray<PointXYZ> triangles_device = marching_cubes_->run(kinfu.volume(), triangles_buffer_device_);    
+    PtrStep<uchar4> color_volume_data = kinfu.colorVolume().data();
+    const uchar4 *colors = color_volume_data.data;
+
+    DeviceArray<float4> triangles_device = marching_cubes_->run(kinfu.volume(), triangles_buffer_device_, colors);
     mesh_ptr_ = convertToMesh(triangles_device);
     
     cloud_viewer_->removeAllPointClouds ();
@@ -633,7 +644,7 @@ struct SceneCloudView
   PointCloud<RGB>::Ptr point_colors_ptr_;
 
   MarchingCubes::Ptr marching_cubes_;
-  DeviceArray<PointXYZ> triangles_buffer_device_;
+  DeviceArray<float4> triangles_buffer_device_;
 
   boost::shared_ptr<pcl::PolygonMesh> mesh_ptr_;
 };
