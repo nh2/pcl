@@ -81,7 +81,7 @@ openni_wrapper::DevicePrimesense::DevicePrimesense (
     THROW_OPENNI_EXCEPTION ("Error creating the recorder. Reason: %s", xnGetStatusString (status));
 
   // TODO Hardcode. This has to be passed in via constructors somehow.
-  std::string oni_recording_path_ = "/tmp/recording.oni";
+  std::string oni_recording_path_ = "recording.oni";
 
   // If a recording is enabled, create an OpenNI recorder node to
   // simultaneously record the depth and color images.
