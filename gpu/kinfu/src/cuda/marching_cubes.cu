@@ -305,6 +305,13 @@ namespace pcl
         return coo;
       }
 
+      /* Gets a voxel color from the color grid. */
+      __device__ __forceinline__ uchar4
+      getNodeColor (int x, int y, int z) const
+      {
+        return colors[(VOLUME_Y * z + y) * VOLUME_X + x];
+      }
+
       __device__ __forceinline__ float3
       vertex_interp (float3 p0, float3 p1, float f0, float f1) const
       {        
@@ -313,6 +320,22 @@ namespace pcl
         float y = p0.y + t * (p1.y - p0.y);
         float z = p0.z + t * (p1.z - p0.z);
         return make_float3 (x, y, z);
+      }
+
+      /* Interpolates between two color values. */
+      __device__ __forceinline__ uchar4
+      color_interp (uchar4 c0, uchar4 c1, float f0, float f1) const
+      {
+        float t = (isoValue() - f0) / (f1 - f0 + 1e-15f);
+        float x = c0.x + t * ( (float) c1.x - (float) c0.x );
+        float y = c0.y + t * ( (float) c1.y - (float) c0.y );
+        float z = c0.z + t * ( (float) c1.z - (float) c0.z );
+        uchar4 res;
+        res.x = x;
+        res.y = y;
+        res.z = z;
+        res.w = 0xFF;
+        return res;
       }
 
       __device__ __forceinline__ void
@@ -333,6 +356,16 @@ namespace pcl
 
         float f[8]; // TSDF value for each of the 8 corners
         int cubeindex = computeCubeIndex (x, y, z, f);
+
+        uchar4 c[8]; // Color value for each of the 8 corners
+        c[0] = getNodeColor (x    , y    , z    );
+        c[1] = getNodeColor (x + 1, y    , z    );
+        c[2] = getNodeColor (x + 1, y + 1, z    );
+        c[3] = getNodeColor (x    , y + 1, z    );
+        c[4] = getNodeColor (x    , y    , z + 1);
+        c[5] = getNodeColor (x + 1, y    , z + 1);
+        c[6] = getNodeColor (x + 1, y + 1, z + 1);
+        c[7] = getNodeColor (x    , y + 1, z + 1);
 
         // calculate cell vertex positions
         float3 v[8];
@@ -361,12 +394,24 @@ namespace pcl
         vertlist[10] = vertex_interp (v[2], v[6], f[2], f[6]);
         vertlist[11] = vertex_interp (v[3], v[7], f[3], f[7]);
 
+        // Interpolate colors between corners of the cube
+        uchar4 colorlist[12];
+
+        colorlist[0] = color_interp (c[0], c[1], f[0], f[1]);
+        colorlist[1] = color_interp (c[1], c[2], f[1], f[2]);
+        colorlist[2] = color_interp (c[2], c[3], f[2], f[3]);
+        colorlist[3] = color_interp (c[3], c[0], f[3], f[0]);
+        colorlist[4] = color_interp (c[4], c[5], f[4], f[5]);
+        colorlist[5] = color_interp (c[5], c[6], f[5], f[6]);
+        colorlist[6] = color_interp (c[6], c[7], f[6], f[7]);
+        colorlist[7] = color_interp (c[7], c[4], f[7], f[4]);
+        colorlist[8] = color_interp (c[0], c[4], f[0], f[4]);
+        colorlist[9] = color_interp (c[1], c[5], f[1], f[5]);
+        colorlist[10] = color_interp (c[2], c[6], f[2], f[6]);
+        colorlist[11] = color_interp (c[3], c[7], f[3], f[7]);
+
         // output triangle vertices
         int numVerts = tex1Dfetch (numVertsTex, cubeindex);
-
-        // TODO nh2: Don't set the center color as the color for the whole
-        //           triangle. Instead interpolate colors for each of its vertices.
-        const uchar4 col = colors[voxel];
 
         for (int i = 0; i < numVerts; i += 3)
         {
@@ -376,9 +421,9 @@ namespace pcl
           int v2 = tex1Dfetch (triTex, (cubeindex * 16) + i + 1);
           int v3 = tex1Dfetch (triTex, (cubeindex * 16) + i + 2);
 
-          store_point (output, index + 0, vertlist[v1], col);
-          store_point (output, index + 1, vertlist[v2], col);
-          store_point (output, index + 2, vertlist[v3], col);
+          store_point (output, index + 0, vertlist[v1], colorlist[v1]);
+          store_point (output, index + 1, vertlist[v2], colorlist[v2]);
+          store_point (output, index + 2, vertlist[v3], colorlist[v3]);
         }
       }
 
