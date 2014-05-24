@@ -655,8 +655,8 @@ struct KinFuApp
 {
   enum { PCD_BIN = 1, PCD_ASCII = 2, PLY = 3, MESH_PLY = 7, MESH_VTK = 8 };
   
-  KinFuApp(pcl::Grabber& source, float vsz, int icp, int viz) : exit_ (false), scan_ (false), scan_mesh_(false), scan_volume_ (false), independent_camera_ (false),
-    registration_ (false), integrate_colors_ (false), start_at_side_ (false), focal_length_(-1.f), capture_ (source), scene_cloud_view_(viz), image_view_(viz), time_ms_(0), icp_(icp), viz_(viz)
+  KinFuApp(pcl::Grabber& source, float vsz, int icp, int viz, bool start_at_side = false) : exit_ (false), scan_ (false), scan_mesh_(false), scan_volume_ (false), independent_camera_ (false),
+    registration_ (false), integrate_colors_ (false), focal_length_(-1.f), capture_ (source), scene_cloud_view_(viz), image_view_(viz), time_ms_(0), icp_(icp), viz_(viz)
   {    
     //Init Kinfu Tracker
     Eigen::Vector3f volume_size = Vector3f::Constant (vsz/*meters*/);    
@@ -665,7 +665,7 @@ struct KinFuApp
     Eigen::Matrix3f R = Eigen::Matrix3f::Identity ();   // * AngleAxisf( pcl::deg2rad(-30.f), Vector3f::UnitX());
 
     Eigen::Vector3f t;
-    if (start_at_side_)
+    if (start_at_side)
     {
       // Start at the center of one side of the scanning volume
       t = volume_size * 0.5f - Vector3f (0, 0, volume_size (2) / 2 * 1.2f);
@@ -1065,7 +1065,6 @@ struct KinFuApp
 
   bool registration_;
   bool integrate_colors_;  
-  bool start_at_side_;
   float focal_length_;
   
   pcl::Grabber& capture_;
@@ -1273,8 +1272,9 @@ main (int argc, char* argv[])
   std::vector<float> depth_intrinsics;
   pc::parse_argument (argc, argv, "--icp", icp);
   pc::parse_argument (argc, argv, "--viz", visualization);
-        
-  KinFuApp app (*capture, volume_size, icp, visualization);
+  bool start_at_side = pc::find_switch (argc, argv, "--start-at-side");
+
+  KinFuApp app (*capture, volume_size, icp, visualization, start_at_side);
 
   if (pc::parse_argument (argc, argv, "-eval", eval_folder) > 0)
     app.toggleEvaluationMode(eval_folder, match_file);
@@ -1295,9 +1295,6 @@ main (int argc, char* argv[])
     }
     app.toggleColorIntegration();
   }
-
-  if (pc::find_switch (argc, argv, "--start-at-side"))
-    app.start_at_side_ = true;
 
   if (pc::find_switch (argc, argv, "--normals") || pc::find_switch (argc, argv, "-n"))
     app.scene_cloud_view_.toggleNormals();
