@@ -1101,6 +1101,15 @@ struct KinFuApp
 
     int key = e.getKeyCode ();
 
+    if (e.keyUp ())
+    {
+      string sym = e.getKeySym();
+      if (sym == "F1") key = (int) '7';
+      if (sym == "F2") key = (int) 'a';
+      if (sym == "F3") key = (int) '1';
+      if (sym == "F4") key = (int) 't';
+    }
+
     if (e.keyUp ())    
       switch (key)
       {
@@ -1132,7 +1141,7 @@ struct KinFuApp
         break;
 
       default:
-        break;
+        cout << "Unknown key " << e.getKeySym() << " (code " << key << ")" << endl;
       }    
   }
 };
