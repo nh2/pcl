@@ -385,13 +385,18 @@ openni_wrapper::OpenNIDevice::Init ()
     if (status != XN_STATUS_OK)
       THROW_OPENNI_EXCEPTION ("reading the baseline failed. Reason: %s", xnGetStatusString (status));
 
-    status = depth_generator_.GetIntProperty ("ShadowValue", shadow_value_);
-    if (status != XN_STATUS_OK)
-      THROW_OPENNI_EXCEPTION ("reading the value for pixels in shadow regions failed. Reason: %s", xnGetStatusString (status));
+    // TODO For replaying oni files recorded with OpenNI2, we cannot get the shadow value.
+    shadow_value_ = 0;
+    no_sample_value_ = 0;
 
-    status = depth_generator_.GetIntProperty ("NoSampleValue", no_sample_value_);
-    if (status != XN_STATUS_OK)
-      THROW_OPENNI_EXCEPTION ("reading the value for pixels with no depth estimation failed. Reason: %s", xnGetStatusString (status));
+    // status = depth_generator_.GetIntProperty ("ShadowValue", shadow_value_);
+    // if (status != XN_STATUS_OK)
+    //   THROW_OPENNI_EXCEPTION ("reading the value for pixels in shadow regions failed. Reason: %s", xnGetStatusString (status));
+    printf("nh2: shadow value %llu\n", shadow_value_);
+
+    // status = depth_generator_.GetIntProperty ("NoSampleValue", no_sample_value_);
+    // if (status != XN_STATUS_OK)
+    //   THROW_OPENNI_EXCEPTION ("reading the value for pixels with no depth estimation failed. Reason: %s", xnGetStatusString (status));
 
     // baseline from cm -> meters
     baseline_ = static_cast<float> (baseline * 0.01);
