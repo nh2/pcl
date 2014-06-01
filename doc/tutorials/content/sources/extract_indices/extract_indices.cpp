@@ -11,6 +11,22 @@ int plane_colors[num_colors][3] = {
   { 255,   0, 255 },
 };
 
+
+template <typename Point>
+void
+projectOntoPlane (const PointCloud<Point> &plane_points,
+                  Eigen::Vector4f &coeffs,
+                  PointCloud<Point> &projected_plane_points)
+{
+  for (size_t i = 0; i < plane_points.points.size(); ++i)
+  {
+    Point projection;
+    projectPoint (plane_points[i], coeffs, projection);
+    projected_plane_points.push_back(projection);
+  }
+}
+
+
 int
 main (int argc, char** argv)
 {
@@ -95,6 +111,8 @@ main (int argc, char** argv)
 
   vector<Eigen::Vector4f> planes;
 
+  ofstream planes_file("planes.txt");
+
   int i = 0, nr_points = (int) cloud_filtered->points.size ();
   // While (rest_ratio * 100%) of the original cloud is still there
   while (cloud_filtered->points.size () > rest_ratio * nr_points)
@@ -112,7 +130,8 @@ main (int argc, char** argv)
 
     cout << "Cloud " << i << " coefficients: " << *coefficients << endl;
 
-    planes.push_back(Eigen::Vector4f::Map(&coefficients->values[0]));
+    Eigen::Vector4f plane = Eigen::Vector4f::Map(&coefficients->values[0]);
+    planes.push_back(plane);
 
     // Extract the inliers
     extract.setInputCloud (cloud_filtered);
@@ -135,10 +154,12 @@ main (int argc, char** argv)
       cloud_colored.push_back(cp);
     }
 
-    stringstream ss;
-    ss << "cloud_plane_" << i << ".pcd";
-    // io::savePCDFile (ss.str (), *cloud_p, true);
-    io::savePCDFile (ss.str (), cloud_colored, true);
+    {
+      stringstream ss;
+      ss << "cloud_plane_" << i << ".pcd";
+      // io::savePCDFile (ss.str (), *cloud_p, true);
+      io::savePCDFile (ss.str (), cloud_colored, true);
+    }
 
     // Create the filtering object
     extract.setNegative (true);
@@ -158,17 +179,47 @@ main (int argc, char** argv)
     extract_normals.filter (*cloud_filtered_normals);
 
 
+    // Write parameters to file
+    {
+      Eigen::Vector4f p = plane;
+      planes_file << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << endl;
+    }
+
+    // For each point belonging to that plane, project it onto the
+    // estimated plane parameters (since it could be slightly displaced).
+    cout << "Projecting points to plane" << endl;
+    PointCloud<PointXYZ> plane_points;
+    PointCloud<PointXYZ>::Ptr projected_plane_points (new PointCloud<PointXYZ>);
+    // PointCloud<PointXYZ> projected_plane_points;
+    projected_plane_points->resize(plane_points.size());
+    {
+      stringstream ss;
+      ss << "cloud_plane_" << i << ".pcd";
+      io::loadPCDFile (ss.str(), plane_points);
+    }
+    projectOntoPlane(plane_points, plane, *projected_plane_points);
+    cout << *projected_plane_points << endl;
+
+    // Then do convex hull on the now flat points on the plane
+    // to find their bounding polygon, so that we can draw/export that
+    // insteat of an infinite plane.
+    cout << "Calculating convex hull" << endl;
+    ConvexHull<PointXYZ> ch;
+    PointCloud<PointXYZ> hull_points;
+    ch.setInputCloud(projected_plane_points);
+    ch.reconstruct(hull_points);
+    {
+      stringstream ss;
+      ss << "cloud_plane_hull" << i << ".pcd";
+      io::savePCDFile (ss.str(), hull_points);
+    }
+
+
     i++;
   }
 
-  ofstream planes_file("planes.txt");
-  for (int i = 0; i < planes.size(); ++i)
-  {
-    Eigen::Vector4f p = planes[i];
-    planes_file << p[0] << " " << p[1] << " " << p[2] << " " << p[3] << endl;
-  }
 
-
+  #if 0
   if (planes.size() < 3)
   {
     cout << "Not enough planes" << endl;
@@ -216,6 +267,7 @@ main (int argc, char** argv)
       }
     }
   }
+  #endif
 
 
   return (0);
