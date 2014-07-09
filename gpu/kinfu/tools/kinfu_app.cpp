@@ -499,6 +499,10 @@ struct SceneCloudView
     }
     else
     {
+      std::cout << "extracting volume_.getSize() " << kinfu.volume().getSize() << std::endl;
+      std::cout << "extracting volume_.getResolution() " << kinfu.volume().getResolution() << std::endl;
+      std::cout << "extracting volume_.getTsdfTruncDist() " << kinfu.volume().getTsdfTruncDist() << std::endl;
+
       DeviceArray<PointXYZ> extracted = kinfu.volume().fetchCloud (cloud_buffer_device_);             
 
       if (compute_normals_)
@@ -528,6 +532,7 @@ struct SceneCloudView
       else
         point_colors_ptr_->points.clear();
     }
+    cout << "valid_combined_ " << valid_combined_ << endl;
     size_t points_size = valid_combined_ ? combined_ptr_->points.size () : cloud_ptr_->points.size ();
     cout << "Done.  Cloud size: " << points_size / 1000 << "K" << endl;
 
@@ -654,8 +659,10 @@ struct SceneCloudView
 struct KinFuApp
 {
   enum { PCD_BIN = 1, PCD_ASCII = 2, PLY = 3, MESH_PLY = 7, MESH_VTK = 8 };
-  
-  KinFuApp(pcl::Grabber& source, float vsz, int icp, int viz, bool start_at_side = false) : exit_ (false), scan_ (false), scan_mesh_(false), scan_volume_ (false), independent_camera_ (false),
+
+  static const int default_max_color_integration_weight = 2;
+
+  KinFuApp(pcl::Grabber& source, float vsz, int icp, int viz, bool start_at_side = false) : exit_ (false), scan_ (false), scan_mesh_(false), scan_volume_ (false), volume_scanned_(false), independent_camera_ (false),
     registration_ (false), integrate_colors_ (false), focal_length_(-1.f), capture_ (source), scene_cloud_view_(viz), image_view_(viz), time_ms_(0), icp_(icp), viz_(viz)
   {    
     //Init Kinfu Tracker
@@ -744,12 +751,19 @@ struct KinFuApp
   }
 
   void 
+  toggleColorIntegrationWithoutRegistration()
+  {
+    kinfu_.initColorIntegration(default_max_color_integration_weight);
+    integrate_colors_ = true;      
+  }
+  
+
+  void 
   toggleColorIntegration()
   {
     if(registration_)
     {
-      const int max_color_integration_weight = 2;
-      kinfu_.initColorIntegration(max_color_integration_weight);
+      kinfu_.initColorIntegration(default_max_color_integration_weight);
       integrate_colors_ = true;      
     }    
     cout << "Color integration: " << (integrate_colors_ ? "On" : "Off ( requires registration mode )") << endl;
@@ -779,7 +793,45 @@ struct KinFuApp
     image_view_.raycaster_ptr_ = RayCaster::Ptr( new RayCaster(kinfu_.rows (), kinfu_.cols (), 
         evaluation_ptr_->fx, evaluation_ptr_->fy, evaluation_ptr_->cx, evaluation_ptr_->cy) );
   }
-  
+
+  void
+  loadTsdf(const string& tsdf_file)
+  {
+    tsdf_volume_.load (tsdf_file, true);
+    cout << "Loaded " << tsdf_volume_.size () << " voxels into host volume" << endl;
+
+    cout << "Uploading TSDF volume to GPU ...";
+    kinfu_.volume().uploadTsdfAndWeighs (tsdf_volume_.volume (), tsdf_volume_.weights ());
+    cout << "done" << endl;
+  }
+
+  void
+  loadColor(const string& color_file)
+  {
+    pcl::console::print_info ("Loading color volume from "); pcl::console::print_value ("%s ... ", color_file.c_str());
+    std::cout << std::flush;
+
+    std::ifstream file (color_file.c_str(), std::ios_base::binary);
+
+    if (file.is_open())
+    {
+      int num_elements = 512*512*512; // TODO nh2 remove hardcode
+      host_voxel_colors.resize (num_elements);
+      file.read ((char*) &host_voxel_colors[0], num_elements * sizeof(uint32_t));
+      file.close ();
+      pcl::console::print_info ("done\n");
+    }
+    else
+    {
+      pcl::console::print_error ("[loadColor] Error: Couldn't read file %s.\n", color_file.c_str());
+      throw new runtime_error("loadColor failed reading file");
+    }
+
+    cout << "Uploading color volume to GPU ...";
+    kinfu_.colorVolume().uploadVoxelColors (host_voxel_colors);
+    cout << "done" << endl;
+  }
+
   void execute(const PtrStepSz<const unsigned short>& depth, const PtrStepSz<const KinfuTracker::PixelRGB>& rgb24, bool has_data)
   {        
     bool has_image = false;
@@ -816,9 +868,18 @@ struct KinFuApp
         tsdf_volume_.setHeader (Eigen::Vector3i (pcl::device::VOLUME_X, pcl::device::VOLUME_Y, pcl::device::VOLUME_Z), kinfu_.volume().getSize ());
         cout << "done [" << tsdf_volume_.size () << " voxels]" << endl << endl;
                 
+        volume_scanned_ = true;
+
         cout << "Converting volume to TSDF cloud ... " << flush;
         tsdf_volume_.convertToTsdfCloud (tsdf_cloud_ptr_);
         cout << "done [" << tsdf_cloud_ptr_->size () << " points]" << endl << endl;        
+
+        if (integrate_colors_)
+        {
+          cout << "Downloading color volume from device ... " << flush;
+          kinfu_.colorVolume().downloadVoxelColors (host_voxel_colors);
+          cout << "done [" << tsdf_volume_.size () << " voxels]" << endl << endl;
+        }
       }
       else
         cout << "[!] tsdf volume download is disabled" << endl << endl;
@@ -946,6 +1007,24 @@ struct KinFuApp
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   void
+  startDisplayOnlyMainLoop ()
+  {
+    bool scene_view_not_stopped= viz_ ? !scene_cloud_view_.cloud_viewer_->wasStopped () : true;
+    bool image_view_not_stopped= viz_ ? !image_view_.viewerScene_->wasStopped () : true;
+
+    while (!exit_ && scene_view_not_stopped && image_view_not_stopped)
+    { 
+      try { this->execute (depth_, rgb24_, false); }
+      catch (const std::bad_alloc& e) { cout << "Bad alloc: " << e.what() << endl; break; }
+      catch (const std::exception& e) { cout << "Exception: " << e.what() << endl; break; }
+      
+      if (viz_)
+          scene_cloud_view_.cloud_viewer_->spinOnce (3);
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  void
   startMainLoop (bool triggered_capture)
   {   
     using namespace openni_wrapper;
@@ -981,8 +1060,8 @@ struct KinFuApp
         bool has_data = data_ready_cond_.timed_wait (lock, boost::posix_time::millisec(100));        
                        
         try { this->execute (depth_, rgb24_, has_data); }
-        catch (const std::bad_alloc& /*e*/) { cout << "Bad alloc" << endl; break; }
-        catch (const std::exception& /*e*/) { cout << "Exception" << endl; break; }
+        catch (const std::bad_alloc& e) { cout << "Bad alloc: " << e.what() << endl; break; }
+        catch (const std::exception& e) { cout << "Exception: " << e.what() << endl; break; }
         
         if (viz_)
             scene_cloud_view_.cloud_viewer_->spinOnce (3);
@@ -1061,6 +1140,7 @@ struct KinFuApp
   bool scan_;
   bool scan_mesh_;
   bool scan_volume_;
+  bool volume_scanned_;
 
   bool independent_camera_;
 
@@ -1079,6 +1159,8 @@ struct KinFuApp
 
   pcl::TSDFVolume<float, short> tsdf_volume_;
   pcl::PointCloud<pcl::PointXYZI>::Ptr tsdf_cloud_ptr_;
+
+  vector<uint32_t> host_voxel_colors;
 
   Evaluation::Ptr evaluation_ptr_;
   
@@ -1108,6 +1190,9 @@ struct KinFuApp
       if (sym == "F2") key = (int) 'a';
       if (sym == "F3") key = (int) '1';
       if (sym == "F4") key = (int) 't';
+      if (sym == "F5") key = (int) 'v';
+      if (sym == "F6") key = (int) 't';
+      if (sym == "F7") key = (int) 'x';
     }
 
     if (e.keyUp ())    
@@ -1132,12 +1217,43 @@ struct KinFuApp
         cout << endl << "Volume scan: " << (app->scan_volume_ ? "enabled" : "disabled") << endl << endl;
         break;
       case (int)'v': case (int)'V':
-        cout << "Saving TSDF volume to tsdf_volume.dat ... " << flush;
-        app->tsdf_volume_.save ("tsdf_volume.dat", true);
-        cout << "done [" << app->tsdf_volume_.size () << " voxels]" << endl;
-        cout << "Saving TSDF volume cloud to tsdf_cloud.pcd ... " << flush;
-        pcl::io::savePCDFile<pcl::PointXYZI> ("tsdf_cloud.pcd", *app->tsdf_cloud_ptr_, true);
-        cout << "done [" << app->tsdf_cloud_ptr_->size () << " points]" << endl;
+        if (!app->volume_scanned_)
+        {
+          cout << "Volume is not yet scanned, use 'x' and 't' first!" << endl;
+        } else {
+          cout << "Saving TSDF volume to tsdf_volume.dat ... " << flush;
+          app->tsdf_volume_.save ("tsdf_volume.dat", true);
+          cout << "done [" << app->tsdf_volume_.size () << " voxels]" << endl;
+          cout << "Saving TSDF volume cloud to tsdf_cloud.pcd ... " << flush;
+          pcl::io::savePCDFile<pcl::PointXYZI> ("tsdf_cloud.pcd", *app->tsdf_cloud_ptr_, true);
+          cout << "done [" << app->tsdf_cloud_ptr_->size () << " points]" << endl;
+
+          if (app->integrate_colors_)
+          {
+            string filename = "color_volume.dat";
+            cout << "Saving color volume to " << filename << " ... " << flush;
+
+            if (app->host_voxel_colors.empty())
+            {
+              cout << "WARNING: Color volume is empty" << endl;
+              break;
+            }
+
+            std::ofstream file (filename.c_str(), std::ios_base::binary);
+
+            if (file.is_open())
+            {
+              file.write ((char*) &(app->host_voxel_colors.at(0)), app->host_voxel_colors.size() * sizeof(uint32_t));
+              file.close();
+            } else {
+              pcl::console::print_error ("Error: Couldn't open file %s.\n", filename.c_str());
+              break;
+            }
+
+            cout << "done [" << app->host_voxel_colors.size () << " voxels]" << endl << endl;
+          }
+
+        }
         break;
 
       default:
@@ -1206,6 +1322,10 @@ print_cli_help ()
   cout << "Valid depth data sources:" << endl; 
   cout << "    -dev <device> (default), -oni <oni_file>, -pcd <pcd_file or directory>" << endl;
   cout << "";
+  cout << "For loading voxel grids:" << endl; 
+  cout << "    -tsdf <tsdf+weights_file>               : load a saved TSDF volume; disables tracking and fusion" << endl;
+  cout << "    -color <color_file>                     : load a saved color volume; requires -tsdf" << endl;
+  cout << "";
   cout << " For RGBD benchmark (Requires OpenCV):" << endl; 
   cout << "    -eval <eval_folder> [-match_file <associations_file_in_the_folder>]" << endl;
     
@@ -1233,6 +1353,7 @@ main (int argc, char* argv[])
   bool triggered_capture = false;
   
   std::string eval_folder, match_file, openni_device, oni_file, pcd_dir;
+  string tsdf_file = "";
   try
   {    
     if (pc::parse_argument (argc, argv, "-dev", openni_device) > 0)
@@ -1260,6 +1381,10 @@ main (int argc, char* argv[])
     {
       //init data source latter
       pc::parse_argument (argc, argv, "-match_file", match_file);
+    }
+    else if (pc::parse_argument (argc, argv, "-tsdf", tsdf_file) > 0)
+    {
+      // No grabber must be created.
     }
     else
     {
@@ -1289,47 +1414,72 @@ main (int argc, char* argv[])
   if (pc::parse_argument (argc, argv, "-eval", eval_folder) > 0)
     app.toggleEvaluationMode(eval_folder, match_file);
 
-  if (pc::find_switch (argc, argv, "--current-cloud") || pc::find_switch (argc, argv, "-cc"))
-    app.initCurrentFrameView ();
-
-  if (pc::find_switch (argc, argv, "--save-views") || pc::find_switch (argc, argv, "-sv"))
-    app.image_view_.accumulate_views_ = true;  //will cause bad alloc after some time  
-  
-  if (pc::find_switch (argc, argv, "--registration") || pc::find_switch (argc, argv, "-r"))  
-    app.initRegistration();
-      
-  if (pc::find_switch (argc, argv, "--integrate-colors") || pc::find_switch (argc, argv, "-ic")) {
-    if (!app.registration_) {
-      pc::print_error("--integrate-colors requires --registration\n");
-      return -1;
-    }
-    app.toggleColorIntegration();
-  }
-
-  if (pc::find_switch (argc, argv, "--normals") || pc::find_switch (argc, argv, "-n"))
-    app.scene_cloud_view_.toggleNormals();
-
-  if (pc::find_switch (argc, argv, "--scale-truncation") || pc::find_switch (argc, argv, "-st"))
-    app.enableTruncationScaling();
-  
-  if (pc::parse_x_arguments (argc, argv, "--depth-intrinsics", depth_intrinsics) > 0)
+  bool disable_grabbing = false;
+  if (!tsdf_file.empty())
   {
-    if ((depth_intrinsics.size() == 4) || (depth_intrinsics.size() == 2))
+    app.loadTsdf(tsdf_file);
+    disable_grabbing = true;
+
+    string color_file;
+    if (pc::parse_argument (argc, argv, "-color", color_file) > 0)
     {
-       app.setDepthIntrinsics(depth_intrinsics);
+      // loadColor needs the color volume initialized
+      app.toggleColorIntegrationWithoutRegistration();
+
+      app.loadColor(color_file);
     }
-    else
-    {
-        pc::print_error("Depth intrinsics must be given on the form fx,fy[,cx,cy].\n");
+  }
+  else
+  {
+
+    if (pc::find_switch (argc, argv, "--current-cloud") || pc::find_switch (argc, argv, "-cc"))
+      app.initCurrentFrameView ();
+
+    if (pc::find_switch (argc, argv, "--save-views") || pc::find_switch (argc, argv, "-sv"))
+      app.image_view_.accumulate_views_ = true;  //will cause bad alloc after some time  
+
+    if (pc::find_switch (argc, argv, "--registration") || pc::find_switch (argc, argv, "-r"))  
+      app.initRegistration();
+        
+    if (pc::find_switch (argc, argv, "--integrate-colors") || pc::find_switch (argc, argv, "-ic")) {
+      if (!app.registration_) {
+        pc::print_error("--integrate-colors requires --registration\n");
         return -1;
-    }   
+      }
+      app.toggleColorIntegration();
+    }
+
+    if (pc::find_switch (argc, argv, "--normals") || pc::find_switch (argc, argv, "-n"))
+      app.scene_cloud_view_.toggleNormals();
+
+    if (pc::find_switch (argc, argv, "--scale-truncation") || pc::find_switch (argc, argv, "-st"))
+      app.enableTruncationScaling();
+    
+    if (pc::parse_x_arguments (argc, argv, "--depth-intrinsics", depth_intrinsics) > 0)
+    {
+      if ((depth_intrinsics.size() == 4) || (depth_intrinsics.size() == 2))
+      {
+         app.setDepthIntrinsics(depth_intrinsics);
+      }
+      else
+      {
+          pc::print_error("Depth intrinsics must be given on the form fx,fy[,cx,cy].\n");
+          return -1;
+      }   
+    }
+    
   }
 
   // executing
-  try { app.startMainLoop (triggered_capture); }
-  catch (const pcl::PCLException& /*e*/) { cout << "PCLException" << endl; }
-  catch (const std::bad_alloc& /*e*/) { cout << "Bad alloc" << endl; }
-  catch (const std::exception& /*e*/) { cout << "Exception" << endl; }
+  try {
+    if (disable_grabbing)
+      app.startDisplayOnlyMainLoop ();
+    else
+      app.startMainLoop (triggered_capture);
+  }
+  catch (const pcl::PCLException& e) { cout << "PCLException: " << e.what() << endl; }
+  catch (const std::bad_alloc& e) { cout << "Bad alloc: " << e.what() << endl; }
+  catch (const std::exception& e) { cout << "Exception: " << e.what() << endl; }
 
 #ifdef HAVE_OPENCV
   for (size_t t = 0; t < app.image_view_.views_.size (); ++t)

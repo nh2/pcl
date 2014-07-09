@@ -146,6 +146,13 @@ namespace pcl
       void
       downloadTsdfAndWeighs(std::vector<float>& tsdf, std::vector<short>& weights) const;
 
+      /** \brief Uploads TSDF volume and weights according voxel weights to GPU memory
+        * \param[out] tsdf Array with tsdf values. if volume resolution is 512x512x512, then for voxel (x,y,z) the tsdf value will be read from volume[512*512*z + 512*y + x];
+        * \param[out] weights Array with tsdf voxel weights. Same size and access index as for tsdf. A weight of 0 indicates the voxel was never used.
+        */
+      void
+      uploadTsdfAndWeighs(const std::vector<float>& tsdf, const std::vector<short>& weights);
+
     private:
       /** \brief tsdf volume size in meters */
       Eigen::Vector3f size_;

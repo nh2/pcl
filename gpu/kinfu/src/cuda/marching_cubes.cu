@@ -468,12 +468,26 @@ pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray
   tg.output = output;
   tg.colors = colors;
 
+  std::cout << "output addr " << &output[0] << std::endl;
+  std::cout << "output size " << output.size() << std::endl;
+
+  std::cout << "macu 1\n";
+
   int blocks_num = divUp (tg.voxels_count, block_size);
 
+  std::cout << "blocks_num " << blocks_num << std::endl;
+  std::cout << "MAX_GRID_SIZE_X " << Tg::MAX_GRID_SIZE_X << std::endl;
+  std::cout << "divUp(blocks_num, Tg::MAX_GRID_SIZE_X)) " << divUp(blocks_num, Tg::MAX_GRID_SIZE_X) << std::endl;
+
+  std::cout << "macu 2\n";
   dim3 block (block_size);
   dim3 grid(min(blocks_num, Tg::MAX_GRID_SIZE_X), divUp(blocks_num, Tg::MAX_GRID_SIZE_X));
+  std::cout << "macu 3\n";
 
   trianglesGeneratorKernel<<<grid, block>>>(tg);
+  std::cout << "macu 4\n";
   cudaSafeCall ( cudaGetLastError () );
+  std::cout << "macu 5\n";
   cudaSafeCall (cudaDeviceSynchronize ());
+  std::cout << "macu 6\n";
 }

@@ -268,8 +268,12 @@ pcl::gpu::TsdfVolume::fetchCloudHost (PointCloud<PointType>& cloud, bool connect
 pcl::gpu::DeviceArray<pcl::gpu::TsdfVolume::PointType>
 pcl::gpu::TsdfVolume::fetchCloud (DeviceArray<PointType>& cloud_buffer) const
 {
+  std::cout << "fetchCloud cloud_buffer.size() " << cloud_buffer.size() << std::endl;
+
   if (cloud_buffer.empty ())
     cloud_buffer.create (DEFAULT_CLOUD_BUFFER_SIZE);
+
+  std::cout << "fetchCloud again cloud_buffer.size() " << cloud_buffer.size() << std::endl;
 
   float3 device_volume_size = device_cast<const float3> (size_);
   size_t size = device::extractCloud (volume_, device_volume_size, cloud_buffer);
@@ -322,11 +326,72 @@ pcl::gpu::TsdfVolume::downloadTsdfAndWeighs (std::vector<float>& tsdf, std::vect
   weights.resize (volumeSize);
   volume_.download(&tsdf[0], volume_.cols() * sizeof(int));
 
+  std::cout << "down volume_.cols() " << volume_.cols() << std::endl;
+  std::cout << "down volume_.rows() " << volume_.rows() << std::endl;
+  
+  std::cout << "down getSize() " << getSize() << std::endl;
+  std::cout << "down getResolution() " << getResolution() << std::endl;
+  std::cout << "down getTsdfTruncDist() " << getTsdfTruncDist() << std::endl;
+
+  std::cout << "down volume_.step() " << volume_.step() << std::endl;
+  std::cout << "down volume_.rows() " << volume_.rows() << std::endl;
+  std::cout << "down volume_.colsBytes() " << volume_.colsBytes() << std::endl;
+
 #pragma omp parallel for
   for(int i = 0; i < (int) tsdf.size(); ++i)
   {
     short2 elem = *reinterpret_cast<short2*>(&tsdf[i]);
     tsdf[i] = (float)(elem.x)/device::DIVISOR;    
+
+    // if (elem.x != 0)
+    // {
+    //   std::cout << "elem.x " << elem.x << std::endl;
+    //   std::cout << "tsdf[i] " << tsdf[i] << std::endl;
+    // }
+
     weights[i] = (short)(elem.y);    
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::TsdfVolume::uploadTsdfAndWeighs (const std::vector<float>& tsdf, const std::vector<short>& weights)
+{
+  std::vector<int> up(tsdf.size());
+
+#pragma omp parallel for
+  for(int i = 0; i < (int) tsdf.size(); ++i)
+  {
+    short2 elem;
+    elem.x = tsdf[i] * device::DIVISOR;
+    // if (tsdf[i] != 0.0)
+    // {
+    //   std::cout << "tsdf[i] " << tsdf[i] << std::endl;
+    //   std::cout << "elem.x " << elem.x << std::endl;
+    // }
+    elem.y = weights[i];
+    up[i] = *(int*) &elem;
+  }
+
+
+  // volume_.upload(up, 512 * sizeof(int)); // TODO nh2: Don't hardcode 512
+  volume_.upload(&up[0], 512 * sizeof(int), 512*512, 512); // TODO nh2: Don't hardcode 512
+
+  std::cout << "up volume_.cols() " << volume_.cols() << std::endl;
+  std::cout << "up volume_.rows() " << volume_.rows() << std::endl;
+  
+  std::cout << "up getSize() " << getSize() << std::endl;
+  std::cout << "up getResolution() " << getResolution() << std::endl;
+  std::cout << "up getTsdfTruncDist() " << getTsdfTruncDist() << std::endl;
+
+  std::cout << "up volume_.step() " << volume_.step() << std::endl;
+  std::cout << "up volume_.rows() " << volume_.rows() << std::endl;
+  std::cout << "up colsBytes.step() " << volume_.colsBytes() << std::endl;
+
+  std::vector<float> tsdf2;
+  std::vector<short> weights2;
+  downloadTsdfAndWeighs(tsdf2, weights2);
+  std::cout << "tsdf equal " << (tsdf == tsdf2) << std::endl;
+  std::cout << "weights equal " << (weights == weights2) << std::endl;
 }

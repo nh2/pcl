@@ -60,12 +60,16 @@ DeviceArray<pcl::gpu::MarchingCubes::MeshPointType>
 pcl::gpu::MarchingCubes::run(const TsdfVolume& tsdf, DeviceArray<MeshPointType>& triangles_buffer, const uchar4* colors)
 {  
   if (triangles_buffer.empty())
-    triangles_buffer.create(DEFAULT_TRIANGLES_BUFFER_SIZE);
+    // triangles_buffer.create(DEFAULT_TRIANGLES_BUFFER_SIZE);
+    triangles_buffer.create(6000000 * 2);
   occupied_voxels_buffer_.create(3, static_cast<int> (triangles_buffer.size () / 3));    
 
   device::bindTextures(edgeTable_, triTable_, numVertsTable_);
   
   int active_voxels = device::getOccupiedVoxels(tsdf.data(), occupied_voxels_buffer_);  
+
+  std::cout << "active_voxels " << active_voxels << std::endl;
+
   if(!active_voxels)
   {
     device::unbindTextures();
