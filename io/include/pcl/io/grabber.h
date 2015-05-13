@@ -240,13 +240,12 @@ namespace pcl
       std::stringstream sstream;
 
       sstream << "no callback for type:" << typeid (T).name ();
-      /*
       sstream << "registered Callbacks are:" << std::endl;
       for( std::map<std::string, boost::signals2::signal_base*>::const_iterator cIt = signals_.begin ();
            cIt != signals_.end (); ++cIt)
       {
         sstream << cIt->first << std::endl;
-      }*/
+      }
 
       PCL_THROW_EXCEPTION (pcl::IOException, "[" << getName () << "] " << sstream.str ());
       //return (boost::signals2::connection ());

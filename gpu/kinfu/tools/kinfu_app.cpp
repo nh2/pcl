@@ -1071,7 +1071,7 @@ struct KinFuApp
     bool need_colors = integrate_colors_ || registration_;
     // boost::signals2::connection c = need_colors ? capture_.registerCallback (func1) : capture_.registerCallback (func2);
     // TODO also do the color callback, with need_colors check
- boost::signals2::connection c = capture_.registerCallback (tcp_depth_func);
+    boost::signals2::connection c = capture_.registerCallback (tcp_depth_func);
 
     {
       boost::unique_lock<boost::mutex> lock(data_ready_mutex_);

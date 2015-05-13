@@ -144,7 +144,7 @@ pcl::TCPGrabber::processGrabbing ()
 
   asio::io_service io_service;
 
-  tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), 13));
+  tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), 1234));
 
   // socket accept loop
   for (;;)
@@ -154,27 +154,23 @@ pcl::TCPGrabber::processGrabbing ()
 
     boost::array<char, 640*480> buf;
 
-    boost::system::error_code error_code;
-    // asio::write(socket, asio::buffer(message), asio::transfer_all(), ignored_error);
-    asio::read(socket, asio::buffer(buf), boost::asio::transfer_at_least(buf.size()), error_code);
-
-    if (error_code)
-    {
-      PCL_THROW_EXCEPTION (pcl::IOException, "TCPGrabber: Could not read from socket");
-    }
-
     bool continue_grabbing = true;
     while (continue_grabbing)
     {
       // Acquire frame
 
-      uint8_t *frame_data;
-      const boost::shared_ptr<unsigned char> frame_data_ptr(frame_data);
+      boost::system::error_code error_code;
+      asio::read(socket, asio::buffer(buf), boost::asio::transfer_at_least(buf.size()), error_code);
+
+      if (error_code)
+      {
+        PCL_THROW_EXCEPTION (pcl::IOException, "TCPGrabber: Could not read from socket");
+      }
 
       // publish frame
       if (num_slots<sig_cb_tcp_depth_image> () > 0)
       {
-        depth_image_signal_->operator() (frame_data_ptr);
+        depth_image_signal_->operator() (buf);
       }
 
       const double capture_time = stop_watch.getTimeSeconds ();
