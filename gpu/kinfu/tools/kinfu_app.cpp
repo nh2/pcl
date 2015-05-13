@@ -58,8 +58,10 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/io/vtk_io.h>
 #include <pcl/io/openni_grabber.h>
+#include <pcl/io/tcp_grabber.h>
 #include <pcl/io/oni_grabber.h>
 #include <pcl/io/pcd_grabber.h>
+#include <pcl/io/tcp_grabber.h>
 
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include "evaluation.h"
@@ -904,6 +906,30 @@ struct KinFuApp
       setViewerPose (*scene_cloud_view_.cloud_viewer_, kinfu_.getCameraPose());
   }
   
+  void source_cb_tcp(const boost::array<char, 640*480>& buf)
+  {
+    {
+      boost::mutex::scoped_try_lock lock(data_ready_mutex_);
+      if (exit_ || !lock)
+          return;
+
+      depth_.cols = 640;
+      depth_.rows = 480;
+      depth_.step = depth_.cols * 2; // we want 16 bits depth data per pixel
+
+      source_depth_data_.resize(depth_.cols * depth_.rows);
+
+      // Copy char[] to unsigned short[] source_depth_data_ array
+      for (int i = 0; i < buf.size(); ++i)
+      {
+        source_depth_data_[i] = buf[i];
+      }
+
+      depth_.data = &source_depth_data_[0];
+    }
+    data_ready_cond_.notify_one();
+  }
+
   void source_cb1_device(const boost::shared_ptr<openni_wrapper::DepthImage>& depth_wrapper)  
   {        
     {
@@ -1031,18 +1057,21 @@ struct KinFuApp
     typedef boost::shared_ptr<DepthImage> DepthImagePtr;
     typedef boost::shared_ptr<Image> ImagePtr;
         
-    boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_dev = boost::bind (&KinFuApp::source_cb2_device, this, _1, _2, _3);
-    boost::function<void (const DepthImagePtr&)> func2_dev = boost::bind (&KinFuApp::source_cb1_device, this, _1);
+    // boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_dev = boost::bind (&KinFuApp::source_cb2_device, this, _1, _2, _3);
+    // boost::function<void (const DepthImagePtr&)> func2_dev = boost::bind (&KinFuApp::source_cb1_device, this, _1);
+    boost::function<void (const boost::array<char, 640*480>&)> tcp_depth_func = boost::bind (&KinFuApp::source_cb_tcp, this, _1);
 
-    boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_oni = boost::bind (&KinFuApp::source_cb2_oni, this, _1, _2, _3);
-    boost::function<void (const DepthImagePtr&)> func2_oni = boost::bind (&KinFuApp::source_cb1_oni, this, _1);
+    // boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_oni = boost::bind (&KinFuApp::source_cb2_oni, this, _1, _2, _3);
+    // boost::function<void (const DepthImagePtr&)> func2_oni = boost::bind (&KinFuApp::source_cb1_oni, this, _1);
     
-    bool is_oni = dynamic_cast<pcl::ONIGrabber*>(&capture_) != 0;
-    boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1 = is_oni ? func1_oni : func1_dev;
-    boost::function<void (const DepthImagePtr&)> func2 = is_oni ? func2_oni : func2_dev;
+    // bool is_oni = dynamic_cast<pcl::ONIGrabber*>(&capture_) != 0;
+    // boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1 = is_oni ? func1_oni : func1_dev;
+    // boost::function<void (const DepthImagePtr&)> func2 = is_oni ? func2_oni : func2_dev;
 
     bool need_colors = integrate_colors_ || registration_;
-    boost::signals2::connection c = need_colors ? capture_.registerCallback (func1) : capture_.registerCallback (func2);
+    // boost::signals2::connection c = need_colors ? capture_.registerCallback (func1) : capture_.registerCallback (func2);
+    // TODO also do the color callback, with need_colors check
+ boost::signals2::connection c = capture_.registerCallback (tcp_depth_func);
 
     {
       boost::unique_lock<boost::mutex> lock(data_ready_mutex_);
@@ -1354,6 +1383,7 @@ main (int argc, char* argv[])
   
   std::string eval_folder, match_file, openni_device, oni_file, pcd_dir;
   string tsdf_file = "";
+  string tcp_addr = "";
   try
   {    
     if (pc::parse_argument (argc, argv, "-dev", openni_device) > 0)
@@ -1385,6 +1415,10 @@ main (int argc, char* argv[])
     else if (pc::parse_argument (argc, argv, "-tsdf", tsdf_file) > 0)
     {
       // No grabber must be created.
+    }
+    else if (pc::parse_argument (argc, argv, "-tcp", tcp_addr) > 0)
+    {
+      capture.reset (new pcl::TCPGrabber ());
     }
     else
     {
