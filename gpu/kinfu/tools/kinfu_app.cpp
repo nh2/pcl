@@ -763,11 +763,11 @@ struct KinFuApp
   void 
   toggleColorIntegration()
   {
-    if(registration_)
-    {
+    // if(registration_)
+    // {
       kinfu_.initColorIntegration(default_max_color_integration_weight);
       integrate_colors_ = true;      
-    }    
+    // }
     cout << "Color integration: " << (integrate_colors_ ? "On" : "Off ( requires registration mode )") << endl;
   }
   
@@ -1485,10 +1485,10 @@ main (int argc, char* argv[])
       app.initRegistration();
         
     if (pc::find_switch (argc, argv, "--integrate-colors") || pc::find_switch (argc, argv, "-ic")) {
-      if (!app.registration_) {
-        pc::print_error("--integrate-colors requires --registration\n");
-        return -1;
-      }
+      // if (!app.registration_) {
+      //   pc::print_error("--integrate-colors requires --registration\n");
+      //   return -1;
+      // }
       app.toggleColorIntegration();
     }
 
