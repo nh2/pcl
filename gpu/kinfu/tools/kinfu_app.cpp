@@ -1073,6 +1073,15 @@ struct KinFuApp
     // TODO also do the color callback, with need_colors check
     boost::signals2::connection c = capture_.registerCallback (tcp_depth_func);
 
+    // TODO get colours properly
+    source_image_data_.resize(640 * 480 * 3);
+    for (int i = 0; i < (640*480); ++i)
+    {
+      // make everything white
+      PixelRGB x = { 255, 255, 255 };
+      source_image_data_[i] = x;
+    }
+
     {
       boost::unique_lock<boost::mutex> lock(data_ready_mutex_);
 
