@@ -147,6 +147,7 @@ pcl::TCPGrabber::processGrabbing ()
   tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), 1234));
 
   // socket accept loop
+  accept_loop:
   for (;;)
   {
     tcp::socket socket(io_service);
@@ -164,7 +165,8 @@ pcl::TCPGrabber::processGrabbing ()
 
       if (error_code)
       {
-        PCL_THROW_EXCEPTION (pcl::IOException, "TCPGrabber: Could not read from socket");
+        goto accept_loop;
+        // PCL_THROW_EXCEPTION (pcl::IOException, "TCPGrabber: Could not read from socket");
       }
 
       // publish frame
