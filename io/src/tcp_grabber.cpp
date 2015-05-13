@@ -151,9 +151,11 @@ pcl::TCPGrabber::processGrabbing ()
   for (;;)
   {
     tcp::socket socket(io_service);
+    std::cout << "TCPGrabber: Waiting for client" << std::endl;
     acceptor.accept(socket);
+    std::cout << "TCPGrabber: Accepted client" << std::endl;
 
-    boost::array<char, 640*480> buf;
+    boost::array<unsigned short, 640*480> buf;
 
     bool continue_grabbing = true;
     while (continue_grabbing)
@@ -161,7 +163,7 @@ pcl::TCPGrabber::processGrabbing ()
       // Acquire frame
 
       boost::system::error_code error_code;
-      asio::read(socket, asio::buffer(buf), boost::asio::transfer_at_least(buf.size()), error_code);
+      asio::read(socket, asio::buffer(buf), boost::asio::transfer_at_least(buf.size()*2), error_code);
 
       if (error_code)
       {

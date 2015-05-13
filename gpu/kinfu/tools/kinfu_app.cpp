@@ -906,7 +906,7 @@ struct KinFuApp
       setViewerPose (*scene_cloud_view_.cloud_viewer_, kinfu_.getCameraPose());
   }
   
-  void source_cb_tcp(const boost::array<char, 640*480>& buf)
+  void source_cb_tcp(const boost::array<unsigned short, 640*480>& buf)
   {
     {
       boost::mutex::scoped_try_lock lock(data_ready_mutex_);
@@ -919,7 +919,7 @@ struct KinFuApp
 
       source_depth_data_.resize(depth_.cols * depth_.rows);
 
-      // Copy char[] to unsigned short[] source_depth_data_ array
+      // TODO use assignment operator
       for (int i = 0; i < buf.size(); ++i)
       {
         source_depth_data_[i] = buf[i];
@@ -1059,7 +1059,7 @@ struct KinFuApp
         
     // boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_dev = boost::bind (&KinFuApp::source_cb2_device, this, _1, _2, _3);
     // boost::function<void (const DepthImagePtr&)> func2_dev = boost::bind (&KinFuApp::source_cb1_device, this, _1);
-    boost::function<void (const boost::array<char, 640*480>&)> tcp_depth_func = boost::bind (&KinFuApp::source_cb_tcp, this, _1);
+    boost::function<void (const boost::array<unsigned short, 640*480>&)> tcp_depth_func = boost::bind (&KinFuApp::source_cb_tcp, this, _1);
 
     // boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_oni = boost::bind (&KinFuApp::source_cb2_oni, this, _1, _2, _3);
     // boost::function<void (const DepthImagePtr&)> func2_oni = boost::bind (&KinFuApp::source_cb1_oni, this, _1);
