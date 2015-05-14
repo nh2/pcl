@@ -906,12 +906,25 @@ struct KinFuApp
       setViewerPose (*scene_cloud_view_.cloud_viewer_, kinfu_.getCameraPose());
   }
   
-  void source_cb_tcp(const boost::array<unsigned short, 640*480>& buf)
+  void source_cb_tcp(const boost::array<unsigned char, 640*480*3> &rgb_buf, const boost::array<unsigned short, 640*480>& depth_buf)
   {
     {
       boost::mutex::scoped_try_lock lock(data_ready_mutex_);
       if (exit_ || !lock)
           return;
+
+      rgb24_.cols = 640;
+      rgb24_.rows = 480;
+      rgb24_.step = rgb24_.cols * 3;
+
+      source_image_data_.resize(rgb24_.cols * rgb24_.rows);
+      for (int i = 0; i < (640*480); ++i)
+      {
+          // make everything white
+          PixelRGB x = { rgb_buf[i*3], rgb_buf[i*3+1], rgb_buf[i*3+2] };
+          source_image_data_[i] = x;
+      }
+      rgb24_.data = &source_image_data_[0];           
 
       depth_.cols = 640;
       depth_.rows = 480;
@@ -920,12 +933,13 @@ struct KinFuApp
       source_depth_data_.resize(depth_.cols * depth_.rows);
 
       // TODO use assignment operator
-      for (int i = 0; i < buf.size(); ++i)
+      for (int i = 0; i < depth_buf.size(); ++i)
       {
-        source_depth_data_[i] = buf[i];
+        source_depth_data_[i] = depth_buf[i];
       }
 
       depth_.data = &source_depth_data_[0];
+
     }
     data_ready_cond_.notify_one();
   }
@@ -1059,7 +1073,7 @@ struct KinFuApp
         
     // boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_dev = boost::bind (&KinFuApp::source_cb2_device, this, _1, _2, _3);
     // boost::function<void (const DepthImagePtr&)> func2_dev = boost::bind (&KinFuApp::source_cb1_device, this, _1);
-    boost::function<void (const boost::array<unsigned short, 640*480>&)> tcp_depth_func = boost::bind (&KinFuApp::source_cb_tcp, this, _1);
+    boost::function<void (const boost::array<unsigned char, 640*480*3> &, const boost::array<unsigned short, 640*480>&)> tcp_func = boost::bind (&KinFuApp::source_cb_tcp, this, _1, _2);
 
     // boost::function<void (const ImagePtr&, const DepthImagePtr&, float constant)> func1_oni = boost::bind (&KinFuApp::source_cb2_oni, this, _1, _2, _3);
     // boost::function<void (const DepthImagePtr&)> func2_oni = boost::bind (&KinFuApp::source_cb1_oni, this, _1);
@@ -1071,16 +1085,7 @@ struct KinFuApp
     bool need_colors = integrate_colors_ || registration_;
     // boost::signals2::connection c = need_colors ? capture_.registerCallback (func1) : capture_.registerCallback (func2);
     // TODO also do the color callback, with need_colors check
-    boost::signals2::connection c = capture_.registerCallback (tcp_depth_func);
-
-    // TODO get colours properly
-    source_image_data_.resize(640 * 480 * 3);
-    for (int i = 0; i < (640*480); ++i)
-    {
-      // make everything white
-      PixelRGB x = { 255, 255, 255 };
-      source_image_data_[i] = x;
-    }
+    boost::signals2::connection c = capture_.registerCallback (tcp_func);
 
     {
       boost::unique_lock<boost::mutex> lock(data_ready_mutex_);
@@ -1442,7 +1447,7 @@ main (int argc, char* argv[])
   }
   catch (const pcl::PCLException& e) { return cout << "Can't open depth source" << endl << e.what() << endl, -1; }
 
-  float volume_size = 3.f;
+  float volume_size = 1.f;
   pc::parse_argument (argc, argv, "-volume_size", volume_size);
   printf("nh2: volume size %f\n", volume_size);
 

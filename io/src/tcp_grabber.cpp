@@ -59,7 +59,7 @@ pcl::TCPGrabber::TCPGrabber ()
   : running_ (false)
   , fps_ (0.0f)
 {
-  depth_image_signal_ = createSignal<sig_cb_tcp_depth_image> ();
+  image_signal_ = createSignal<sig_cb_tcp_image> ();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -67,7 +67,7 @@ pcl::TCPGrabber::~TCPGrabber () throw ()
 {
   stop ();
 
-  disconnect_all_slots<sig_cb_tcp_depth_image> ();
+  disconnect_all_slots<sig_cb_tcp_image> ();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,7 +155,8 @@ pcl::TCPGrabber::processGrabbing ()
     acceptor.accept(socket);
     std::cout << "TCPGrabber: Accepted client" << std::endl;
 
-    boost::array<unsigned short, 640*480> buf;
+    boost::array<unsigned char, 640*480*3> rgb_buf;
+    boost::array<unsigned short, 640*480> depth_buf;
 
     bool continue_grabbing = true;
     while (continue_grabbing)
@@ -163,7 +164,8 @@ pcl::TCPGrabber::processGrabbing ()
       // Acquire frame
 
       boost::system::error_code error_code;
-      asio::read(socket, asio::buffer(buf), boost::asio::transfer_at_least(buf.size()*2), error_code);
+      asio::read(socket, asio::buffer(rgb_buf), boost::asio::transfer_at_least(rgb_buf.size()), error_code);
+      asio::read(socket, asio::buffer(depth_buf), boost::asio::transfer_at_least(depth_buf.size()*2), error_code);
 
       if (error_code)
       {
@@ -172,9 +174,9 @@ pcl::TCPGrabber::processGrabbing ()
       }
 
       // publish frame
-      if (num_slots<sig_cb_tcp_depth_image> () > 0)
+      if (num_slots<sig_cb_tcp_image> () > 0)
       {
-        depth_image_signal_->operator() (buf);
+        image_signal_->operator() (rgb_buf, depth_buf);
       }
 
       const double capture_time = stop_watch.getTimeSeconds ();

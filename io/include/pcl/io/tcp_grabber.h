@@ -75,7 +75,7 @@ namespace pcl
       } Mode;
 
       //define callback signature typedefs
-      typedef void (sig_cb_tcp_depth_image) (const boost::array<unsigned short, 640*480>&);
+      typedef void (sig_cb_tcp_image) (const boost::array<unsigned char, 640*480*3>&, const boost::array<unsigned short, 640*480>&);
 
     public:
       /** \brief Constructor */
@@ -119,7 +119,7 @@ namespace pcl
       processGrabbing ();
 
       // signals to indicate whether new frames are available
-      boost::signals2::signal<sig_cb_tcp_depth_image>* depth_image_signal_;
+      boost::signals2::signal<sig_cb_tcp_image>* image_signal_;
 
     protected:
       // indicates whether grabbing is running
