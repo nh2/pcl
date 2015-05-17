@@ -167,6 +167,8 @@ pcl::TCPGrabber::processGrabbing ()
       asio::read(socket, asio::buffer(rgb_buf), boost::asio::transfer_at_least(rgb_buf.size()), error_code);
       asio::read(socket, asio::buffer(depth_buf), boost::asio::transfer_at_least(depth_buf.size()*2), error_code);
 
+      std::cout << "TCPGrabber: got frame" << std::endl;
+
       if (error_code)
       {
         goto accept_loop;
