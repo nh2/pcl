@@ -43,7 +43,7 @@
 #endif
 
 #include <pcl/io/openni_camera/openni_device_primesense.h>
-#include <pcl/io/openni_camera/openni_image_yuv_422.h>
+#include <pcl/io/openni_camera/openni_image_rgb24.h>
 #include <iostream>
 #include <sstream>
 #include <pcl/io/boost.h>
@@ -63,13 +63,11 @@ openni_wrapper::DevicePrimesense::DevicePrimesense (
   setIROutputMode (getDefaultIRMode ());
 
   boost::unique_lock<boost::mutex> image_lock (image_mutex_);
-  XnStatus status = image_generator_.SetIntProperty ("InputFormat", 5);
-  if (status != XN_STATUS_OK)
-    THROW_OPENNI_EXCEPTION ("Error setting the image input format to Uncompressed YUV422. Reason: %s", xnGetStatusString (status));
+  XnStatus status = XN_STATUS_OK;
 
-  status = image_generator_.SetPixelFormat (XN_PIXEL_FORMAT_YUV422);
+  status = image_generator_.SetPixelFormat (XN_PIXEL_FORMAT_RGB24);
   if (status != XN_STATUS_OK)
-    THROW_OPENNI_EXCEPTION ("Failed to set image pixel format to YUV422. Reason: %s", xnGetStatusString (status));
+    THROW_OPENNI_EXCEPTION ("Failed to set image pixel format to RGB24. Reason: %s", xnGetStatusString (status));
 
   image_lock.unlock ();
 
@@ -77,6 +75,35 @@ openni_wrapper::DevicePrimesense::DevicePrimesense (
   status = depth_generator_.SetIntProperty ("RegistrationType", 1);
   if (status != XN_STATUS_OK)
     THROW_OPENNI_EXCEPTION ("Error setting the registration type. Reason: %s", xnGetStatusString (status));
+
+  status = recorder_.Create (context);
+  if (status != XN_STATUS_OK)
+    THROW_OPENNI_EXCEPTION ("Error creating the recorder. Reason: %s", xnGetStatusString (status));
+
+  // TODO Hardcode. This has to be passed in via constructors somehow.
+  std::string oni_recording_path_ = "recording.oni";
+
+  // If a recording is enabled, create an OpenNI recorder node to
+  // simultaneously record the depth and color images.
+  if (oni_recording_path_ != "")
+  {
+    status = recorder_.SetDestination (XN_RECORD_MEDIUM_FILE, oni_recording_path_.c_str());
+    if (status != XN_STATUS_OK)
+      THROW_OPENNI_EXCEPTION ("Error setting the recorder destinations. Reason: %s", xnGetStatusString (status));
+
+    // We use XN_CODEC_NULL to have the compression chosen automatically.
+    status = recorder_.AddNodeToRecording (depth_generator_, XN_CODEC_NULL);
+    if (status != XN_STATUS_OK)
+      THROW_OPENNI_EXCEPTION ("Error adding depth generator to recorder. Reason: %s", xnGetStatusString (status));
+
+    // We use uncompressed. Note that the OpenNI2 NiViewer will give `openDevice failed`
+    // if we choose JPEG here (the default XN_CODEC_NULL also picks JPEG).
+    status = recorder_.AddNodeToRecording (image_generator_, XN_CODEC_UNCOMPRESSED);
+    if (status != XN_STATUS_OK)
+      THROW_OPENNI_EXCEPTION ("Error adding image generator to recorder. Reason: %s", xnGetStatusString (status));
+
+    recorder_created_ = true;
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +129,7 @@ openni_wrapper::DevicePrimesense::isImageResizeSupported (
     unsigned output_width, 
     unsigned output_height) const throw ()
 {
-  return (ImageYUV422::resizingSupported (input_width, input_height, output_width, output_height));
+  return (ImageRGB24::resizingSupported (input_width, input_height, output_width, output_height));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -170,7 +197,7 @@ openni_wrapper::DevicePrimesense::enumAvailableModes () throw ()
 boost::shared_ptr<openni_wrapper::Image> 
 openni_wrapper::DevicePrimesense::getCurrentImage (boost::shared_ptr<xn::ImageMetaData> image_data) const throw ()
 {
-  return (boost::shared_ptr<openni_wrapper::Image> (new ImageYUV422 (image_data)));
+  return (boost::shared_ptr<openni_wrapper::Image> (new ImageRGB24 (image_data)));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

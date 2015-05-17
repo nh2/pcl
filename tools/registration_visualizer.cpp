@@ -47,11 +47,12 @@ main (int argc, char** argv)
 {
 //  /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  if (argc != 3)
+  if (argc != 4)
   {
-    std::cerr << "please specify the paths to the two point clouds to be registered" << std::endl;
+    std::cerr << "please specify the paths to the two point clouds to be registered and the number of iterations" << std::endl;
     exit (0);
   }
+  int iterations = atoi(argv[3]);
 //  /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //  /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +116,7 @@ main (int argc, char** argv)
 //  ///////////////////////////////////////////////////////////////////////////////////////////////////
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
 
-  icp.setMaximumIterations(10000);
+  icp.setMaximumIterations(iterations);
 
 //  icp.setMaxCorrespondenceDistance (0.6);
   icp.setMaxCorrespondenceDistance (0.8);

@@ -101,3 +101,23 @@ pcl::gpu::ColorVolume::fetchColors (const DeviceArray<PointType>& cloud, DeviceA
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::ColorVolume::downloadVoxelColors (std::vector<uint32_t>& voxel_colors) const
+{
+  int volumeSize = color_volume_.cols() * color_volume_.rows();
+  voxel_colors.resize (volumeSize);
+  color_volume_.download(&voxel_colors[0], color_volume_.cols() * sizeof(int));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void
+pcl::gpu::ColorVolume::uploadVoxelColors (const std::vector<uint32_t>& voxel_colors)
+{
+  color_volume_.upload(&voxel_colors[0], 512 * sizeof(uint32_t), 512*512, 512); // TODO nh2: Don't hardcode 512
+
+  std::vector<uint32_t> test;
+  downloadVoxelColors(test);
+  std::cout << "upload idempotent: " << (test == voxel_colors) << std::endl;
+}

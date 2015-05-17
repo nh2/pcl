@@ -44,6 +44,7 @@
 
 #include <pcl/io/openni_camera/openni_device_oni.h>
 #include <pcl/io/openni_camera/openni_image_rgb24.h>
+#include <pcl/io/openni_camera/openni_image_yuv_422.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 openni_wrapper::DeviceONI::DeviceONI (
@@ -86,6 +87,8 @@ openni_wrapper::DeviceONI::DeviceONI (
   {
     available_image_modes_.push_back (getImageOutputMode ());
     image_generator_.RegisterToNewDataAvailable (static_cast<xn::StateChangedHandler> (NewONIImageDataAvailable), this, image_callback_handle_);
+
+    pixel_format_ = image_generator_.GetPixelFormat();
   }
 
   status = context_.FindExistingNode(XN_NODE_TYPE_IR, ir_generator_);
@@ -249,14 +252,30 @@ openni_wrapper::DeviceONI::NewONIIRDataAvailable (xn::ProductionNode&, void* coo
 boost::shared_ptr<openni_wrapper::Image> 
 openni_wrapper::DeviceONI::getCurrentImage(boost::shared_ptr<xn::ImageMetaData> image_meta_data) const throw ()
 {
-  return (boost::shared_ptr<openni_wrapper::Image> (new openni_wrapper::ImageRGB24 (image_meta_data)));
+  switch (pixel_format_)
+  {
+    case XN_PIXEL_FORMAT_RGB24:
+      return (boost::shared_ptr<openni_wrapper::Image> (new openni_wrapper::ImageRGB24 (image_meta_data)));
+    case XN_PIXEL_FORMAT_YUV422:
+      return (boost::shared_ptr<openni_wrapper::Image> (new openni_wrapper::ImageYUV422 (image_meta_data)));
+    default:
+      THROW_OPENNI_EXCEPTION ("PCL cannot handle the XnPixelFormat (%d) in the .oni file", pixel_format_);
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool 
 openni_wrapper::DeviceONI::isImageResizeSupported(unsigned input_width, unsigned input_height, unsigned output_width, unsigned output_height) const throw ()
 {
-  return (openni_wrapper::ImageRGB24::resizingSupported (input_width, input_height, output_width, output_height));
+  switch (pixel_format_)
+  {
+    case XN_PIXEL_FORMAT_RGB24:
+      return (openni_wrapper::ImageRGB24::resizingSupported (input_width, input_height, output_width, output_height));
+    case XN_PIXEL_FORMAT_YUV422:
+      return (openni_wrapper::ImageYUV422::resizingSupported (input_width, input_height, output_width, output_height));
+    default:
+      THROW_OPENNI_EXCEPTION ("PCL cannot handle the XnPixelFormat (%d) in the .oni file", pixel_format_);
+  }
 }
 
 #endif //HAVE_OPENNI

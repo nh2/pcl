@@ -624,6 +624,13 @@ pcl::gpu::kinfuLS::KinfuTracker::operator() (const DepthMap& depth_raw)
   // Call ICP
   if(!performICP(intr, last_known_global_rotation, last_known_global_translation, current_global_rotation, current_global_translation))
   {
+    cout << "synthetic ICP failed, skipping pairwise" << std::endl;
+    { // Don't do pair-wise ICP
+      // save current vertex and normal maps
+      saveCurrentMaps ();
+      return (false);
+    }
+
     // ICP based on synthetic maps failed -> try to estimate the current camera pose based on previous and current raw maps
     Matrix3frm delta_rotation;
     Vector3f delta_translation;    

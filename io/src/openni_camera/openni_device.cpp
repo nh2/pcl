@@ -77,6 +77,8 @@ openni_wrapper::OpenNIDevice::OpenNIDevice (
     depth_generator_ (),
     image_generator_ (),
     ir_generator_ (),
+    recorder_ (),
+    recorder_created_ (false),
     depth_callback_handle_ (),
     image_callback_handle_ (),
     ir_callback_handle_ (),
@@ -193,6 +195,8 @@ openni_wrapper::OpenNIDevice::OpenNIDevice (xn::Context& context, const xn::Node
     depth_generator_ (),
     image_generator_ (),
     ir_generator_ (),
+    recorder_ (),
+    recorder_created_ (false),
     depth_callback_handle_ (),
     image_callback_handle_ (),
     ir_callback_handle_ (),
@@ -285,6 +289,8 @@ openni_wrapper::OpenNIDevice::OpenNIDevice (xn::Context& context)
     depth_generator_ (),
     image_generator_ (),
     ir_generator_ (),
+    recorder_ (),
+    recorder_created_ (false),
     depth_callback_handle_ (),
     image_callback_handle_ (),
     ir_callback_handle_ (),
@@ -379,13 +385,18 @@ openni_wrapper::OpenNIDevice::Init ()
     if (status != XN_STATUS_OK)
       THROW_OPENNI_EXCEPTION ("reading the baseline failed. Reason: %s", xnGetStatusString (status));
 
-    status = depth_generator_.GetIntProperty ("ShadowValue", shadow_value_);
-    if (status != XN_STATUS_OK)
-      THROW_OPENNI_EXCEPTION ("reading the value for pixels in shadow regions failed. Reason: %s", xnGetStatusString (status));
+    // TODO For replaying oni files recorded with OpenNI2, we cannot get the shadow value.
+    shadow_value_ = 0;
+    no_sample_value_ = 0;
 
-    status = depth_generator_.GetIntProperty ("NoSampleValue", no_sample_value_);
-    if (status != XN_STATUS_OK)
-      THROW_OPENNI_EXCEPTION ("reading the value for pixels with no depth estimation failed. Reason: %s", xnGetStatusString (status));
+    // status = depth_generator_.GetIntProperty ("ShadowValue", shadow_value_);
+    // if (status != XN_STATUS_OK)
+    //   THROW_OPENNI_EXCEPTION ("reading the value for pixels in shadow regions failed. Reason: %s", xnGetStatusString (status));
+    printf("nh2: shadow value %llu\n", shadow_value_);
+
+    // status = depth_generator_.GetIntProperty ("NoSampleValue", no_sample_value_);
+    // if (status != XN_STATUS_OK)
+    //   THROW_OPENNI_EXCEPTION ("reading the value for pixels with no depth estimation failed. Reason: %s", xnGetStatusString (status));
 
     // baseline from cm -> meters
     baseline_ = static_cast<float> (baseline * 0.01);
@@ -906,6 +917,20 @@ openni_wrapper::OpenNIDevice::DepthDataThreadFunction ()
     depth_generator_.GetMetaData (depth_md);    
     boost::shared_ptr<xn::DepthMetaData> depth_data (new xn::DepthMetaData);
     depth_data->CopyFrom (depth_md);
+
+    // Tell the recorder to record the depth frame.
+    // This also triggers it to record all other nodes added to it with
+    // AddNodeToRecording() (e.g. the color image).
+    // TODO This is not the right place for this, image/IR should also be able to trigger Record(),
+    //      but we can't just put it everywhere; probably one of the Wait*UpdateData() functions
+    //      is better, but not sure yet how to combine that with this threading set-up.
+    if (recorder_created_)
+    {
+      XnStatus status = recorder_.Record ();
+      if (status != XN_STATUS_OK)
+        THROW_OPENNI_EXCEPTION ("Error running Record(). Reason: %s", xnGetStatusString (status));
+    }
+
     depth_lock.unlock ();
 
     boost::shared_ptr<DepthImage> depth_image ( new DepthImage (depth_data, baseline_, getDepthFocalLength (), shadow_value_, no_sample_value_) );

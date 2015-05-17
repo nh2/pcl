@@ -52,9 +52,11 @@ namespace pcl
     typedef DeviceArray2D<float> MapArr;
     typedef DeviceArray2D<ushort> DepthMap;
     typedef float4 PointType;
+    typedef float4 MeshPointType;
 
     //TSDF fixed point divisor (if old format is enabled)
     const int DIVISOR = 32767;     // SHRT_MAX;
+    const int SHIFT = 16;          // Same as / DIVISOR;
 
 	//Should be multiple of 32
     enum { VOLUME_X = 512, VOLUME_Y = 512, VOLUME_Z = 512 };
@@ -133,11 +135,11 @@ namespace pcl
 
     /** \brief Performs affine tranform of vertex and normal maps
       * \param[in] vmap_src source vertex map
-      * \param[in] nmap_src source vertex map
+      * \param[in] nmap_src source normal map
       * \param[in] Rmat Rotation mat
       * \param[in] tvec translation
       * \param[out] vmap_dst destination vertex map
-      * \param[out] nmap_dst destination vertex map
+      * \param[out] nmap_dst destination normal map
       */
     void 
     tranformMaps (const MapArr& vmap_src, const MapArr& nmap_src, const Mat33& Rmat, const float3& tvec, MapArr& vmap_dst, MapArr& nmap_dst);
@@ -159,7 +161,7 @@ namespace pcl
       * \param[in] tprev camera translation at previous pose
       * \param[in] intr camera intrinsics
       * \param[in] vmap_g_prev previous vertex map in global coo space
-      * \param[in] nmap_g_prev previous vertex map in global coo space
+      * \param[in] nmap_g_prev previous normal map in global coo space
       * \param[in] distThres distance filtering threshold
       * \param[in] angleThres angle filtering threshold. Represents sine of angle between normals
       * \param[out] coresp
@@ -187,12 +189,12 @@ namespace pcl
       * \param[in] Rcurr Rotation of current camera pose guess 
       * \param[in] tcurr translation of current camera pose guess 
       * \param[in] vmap_curr current vertex map in camera coo space
-      * \param[in] nmap_curr current vertex map in camera coo space
+      * \param[in] nmap_curr current normal map in camera coo space
       * \param[in] Rprev_inv inverse camera rotation at previous pose
       * \param[in] tprev camera translation at previous pose
       * \param[in] intr camera intrinsics
       * \param[in] vmap_g_prev previous vertex map in global coo space
-      * \param[in] nmap_g_prev previous vertex map in global coo space
+      * \param[in] nmap_g_prev previous normal map in global coo space
       * \param[in] distThres distance filtering threshold
       * \param[in] angleThres angle filtering threshold. Represents sine of angle between normals
       * \param[out] gbuf temp buffer for GPU reduction
@@ -435,7 +437,7 @@ namespace pcl
       * \param[out] output triangle array            
       */
     void
-    generateTriangles(const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<PointType>& output);
+    generateTriangles(const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<MeshPointType>& output, const uchar4* colors);
   }
 }
 

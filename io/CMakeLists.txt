@@ -221,6 +221,7 @@ if(build)
     set(srcs
         src/debayer.cpp
         src/pcd_grabber.cpp
+        src/tcp_grabber.cpp
         src/pcd_io.cpp
         src/vtk_io.cpp
         src/ply_io.cpp
@@ -268,6 +269,7 @@ if(build)
         "include/pcl/${SUBSYS_NAME}/grabber.h"
         "include/pcl/${SUBSYS_NAME}/file_grabber.h"
         "include/pcl/${SUBSYS_NAME}/pcd_grabber.h"
+        "include/pcl/${SUBSYS_NAME}/tcp_grabber.h"
         "include/pcl/${SUBSYS_NAME}/pcd_io.h"
         "include/pcl/${SUBSYS_NAME}/vtk_io.h"
         "include/pcl/${SUBSYS_NAME}/ply_io.h"

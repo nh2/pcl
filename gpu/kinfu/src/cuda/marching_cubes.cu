@@ -104,14 +104,14 @@ namespace pcl
 
         // calculate flag indicating if each vertex is inside or outside isosurface
         int cubeindex;
-        cubeindex = int(f[0] < isoValue());
-        cubeindex += int(f[1] < isoValue()) * 2;
-        cubeindex += int(f[2] < isoValue()) * 4;
-        cubeindex += int(f[3] < isoValue()) * 8;
-        cubeindex += int(f[4] < isoValue()) * 16;
-        cubeindex += int(f[5] < isoValue()) * 32;
-        cubeindex += int(f[6] < isoValue()) * 64;
-        cubeindex += int(f[7] < isoValue()) * 128;
+        cubeindex  = int(f[0] < isoValue());
+        cubeindex += int(f[1] < isoValue()) << 1;
+        cubeindex += int(f[2] < isoValue()) << 2;
+        cubeindex += int(f[3] < isoValue()) << 3;
+        cubeindex += int(f[4] < isoValue()) << 4;
+        cubeindex += int(f[5] < isoValue()) << 5;
+        cubeindex += int(f[6] < isoValue()) << 6;
+        cubeindex += int(f[7] < isoValue()) << 7;
 
         return cubeindex;
       }
@@ -288,7 +288,9 @@ namespace pcl
       int voxels_count;
       float3 cell_size;
 
-      mutable PointType *output;
+      mutable MeshPointType *output;
+
+      const uchar4* colors;
 
       __device__ __forceinline__ float3
       getNodeCoo (int x, int y, int z) const
@@ -303,6 +305,13 @@ namespace pcl
         return coo;
       }
 
+      /* Gets a voxel color from the color grid. */
+      __device__ __forceinline__ uchar4
+      getNodeColor (int x, int y, int z) const
+      {
+        return colors[(VOLUME_Y * z + y) * VOLUME_X + x];
+      }
+
       __device__ __forceinline__ float3
       vertex_interp (float3 p0, float3 p1, float f0, float f1) const
       {        
@@ -311,6 +320,22 @@ namespace pcl
         float y = p0.y + t * (p1.y - p0.y);
         float z = p0.z + t * (p1.z - p0.z);
         return make_float3 (x, y, z);
+      }
+
+      /* Interpolates between two color values. */
+      __device__ __forceinline__ uchar4
+      color_interp (uchar4 c0, uchar4 c1, float f0, float f1) const
+      {
+        float t = (isoValue() - f0) / (f1 - f0 + 1e-15f);
+        float x = c0.x + t * ( (float) c1.x - (float) c0.x );
+        float y = c0.y + t * ( (float) c1.y - (float) c0.y );
+        float z = c0.z + t * ( (float) c1.z - (float) c0.z );
+        uchar4 res;
+        res.x = x;
+        res.y = y;
+        res.z = z;
+        res.w = 0xFF;
+        return res;
       }
 
       __device__ __forceinline__ void
@@ -329,8 +354,18 @@ namespace pcl
         int y = (voxel - z * VOLUME_X * VOLUME_Y) / VOLUME_X;
         int x = (voxel - z * VOLUME_X * VOLUME_Y) - y * VOLUME_X;
 
-        float f[8];
+        float f[8]; // TSDF value for each of the 8 corners
         int cubeindex = computeCubeIndex (x, y, z, f);
+
+        uchar4 c[8]; // Color value for each of the 8 corners
+        c[0] = getNodeColor (x    , y    , z    );
+        c[1] = getNodeColor (x + 1, y    , z    );
+        c[2] = getNodeColor (x + 1, y + 1, z    );
+        c[3] = getNodeColor (x    , y + 1, z    );
+        c[4] = getNodeColor (x    , y    , z + 1);
+        c[5] = getNodeColor (x + 1, y    , z + 1);
+        c[6] = getNodeColor (x + 1, y + 1, z + 1);
+        c[7] = getNodeColor (x    , y + 1, z + 1);
 
         // calculate cell vertex positions
         float3 v[8];
@@ -344,22 +379,36 @@ namespace pcl
         v[7] = getNodeCoo (x, y + 1, z + 1);
 
         // find the vertices where the surface intersects the cube
-        // use shared memory to avoid using local
-        __shared__ float3 vertlist[12][CTA_SIZE];
+        float3 vertlist[12];
 
-        vertlist[0][tid] = vertex_interp (v[0], v[1], f[0], f[1]);
-        vertlist[1][tid] = vertex_interp (v[1], v[2], f[1], f[2]);
-        vertlist[2][tid] = vertex_interp (v[2], v[3], f[2], f[3]);
-        vertlist[3][tid] = vertex_interp (v[3], v[0], f[3], f[0]);
-        vertlist[4][tid] = vertex_interp (v[4], v[5], f[4], f[5]);
-        vertlist[5][tid] = vertex_interp (v[5], v[6], f[5], f[6]);
-        vertlist[6][tid] = vertex_interp (v[6], v[7], f[6], f[7]);
-        vertlist[7][tid] = vertex_interp (v[7], v[4], f[7], f[4]);
-        vertlist[8][tid] = vertex_interp (v[0], v[4], f[0], f[4]);
-        vertlist[9][tid] = vertex_interp (v[1], v[5], f[1], f[5]);
-        vertlist[10][tid] = vertex_interp (v[2], v[6], f[2], f[6]);
-        vertlist[11][tid] = vertex_interp (v[3], v[7], f[3], f[7]);
-        __syncthreads ();
+        vertlist[0] = vertex_interp (v[0], v[1], f[0], f[1]);
+        vertlist[1] = vertex_interp (v[1], v[2], f[1], f[2]);
+        vertlist[2] = vertex_interp (v[2], v[3], f[2], f[3]);
+        vertlist[3] = vertex_interp (v[3], v[0], f[3], f[0]);
+        vertlist[4] = vertex_interp (v[4], v[5], f[4], f[5]);
+        vertlist[5] = vertex_interp (v[5], v[6], f[5], f[6]);
+        vertlist[6] = vertex_interp (v[6], v[7], f[6], f[7]);
+        vertlist[7] = vertex_interp (v[7], v[4], f[7], f[4]);
+        vertlist[8] = vertex_interp (v[0], v[4], f[0], f[4]);
+        vertlist[9] = vertex_interp (v[1], v[5], f[1], f[5]);
+        vertlist[10] = vertex_interp (v[2], v[6], f[2], f[6]);
+        vertlist[11] = vertex_interp (v[3], v[7], f[3], f[7]);
+
+        // Interpolate colors between corners of the cube
+        uchar4 colorlist[12];
+
+        colorlist[0] = color_interp (c[0], c[1], f[0], f[1]);
+        colorlist[1] = color_interp (c[1], c[2], f[1], f[2]);
+        colorlist[2] = color_interp (c[2], c[3], f[2], f[3]);
+        colorlist[3] = color_interp (c[3], c[0], f[3], f[0]);
+        colorlist[4] = color_interp (c[4], c[5], f[4], f[5]);
+        colorlist[5] = color_interp (c[5], c[6], f[5], f[6]);
+        colorlist[6] = color_interp (c[6], c[7], f[6], f[7]);
+        colorlist[7] = color_interp (c[7], c[4], f[7], f[4]);
+        colorlist[8] = color_interp (c[0], c[4], f[0], f[4]);
+        colorlist[9] = color_interp (c[1], c[5], f[1], f[5]);
+        colorlist[10] = color_interp (c[2], c[6], f[2], f[6]);
+        colorlist[11] = color_interp (c[3], c[7], f[3], f[7]);
 
         // output triangle vertices
         int numVerts = tex1Dfetch (numVertsTex, cubeindex);
@@ -372,15 +421,21 @@ namespace pcl
           int v2 = tex1Dfetch (triTex, (cubeindex * 16) + i + 1);
           int v3 = tex1Dfetch (triTex, (cubeindex * 16) + i + 2);
 
-          store_point (output, index + 0, vertlist[v1][tid]);
-          store_point (output, index + 1, vertlist[v2][tid]);
-          store_point (output, index + 2, vertlist[v3][tid]);
+          store_point (output, index + 0, vertlist[v1], colorlist[v1]);
+          store_point (output, index + 1, vertlist[v2], colorlist[v2]);
+          store_point (output, index + 2, vertlist[v3], colorlist[v3]);
         }
       }
 
       __device__ __forceinline__ void
-      store_point (float4 *ptr, int index, const float3& point) const {
-        ptr[index] = make_float4 (point.x, point.y, point.z, 1.0f);
+      store_point (MeshPointType *ptr, int index, const float3& point, const uchar4 col) const {
+        // uint32_t rgba = 0xffFFffFF; // alpha sits to the most left
+        uint32_t rgba =   (( (uint32_t) 0xff)  << 24) // alpha sits to the most left
+                        + (( (uint32_t) col.x) << 16)
+                        + (( (uint32_t) col.y) <<  8)
+                        + (( (uint32_t) col.z));
+        float color = *((float*) &rgba);
+        ptr[index] = make_float4 (point.x, point.y, point.z, color);
       }
     };
     __global__ void
@@ -390,7 +445,7 @@ namespace pcl
 
 
 void
-pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<PointType>& output)
+pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray2D<int>& occupied_voxels, const float3& volume_size, DeviceArray<MeshPointType>& output, const uchar4 *colors)
 {   
   int device;
   cudaSafeCall( cudaGetDevice(&device) );
@@ -411,13 +466,28 @@ pcl::device::generateTriangles (const PtrStep<short2>& volume, const DeviceArray
   tg.cell_size.y = volume_size.y / VOLUME_Y;
   tg.cell_size.z = volume_size.z / VOLUME_Z;
   tg.output = output;
+  tg.colors = colors;
+
+  std::cout << "output addr " << &output[0] << std::endl;
+  std::cout << "output size " << output.size() << std::endl;
+
+  std::cout << "macu 1\n";
 
   int blocks_num = divUp (tg.voxels_count, block_size);
 
+  std::cout << "blocks_num " << blocks_num << std::endl;
+  std::cout << "MAX_GRID_SIZE_X " << Tg::MAX_GRID_SIZE_X << std::endl;
+  std::cout << "divUp(blocks_num, Tg::MAX_GRID_SIZE_X)) " << divUp(blocks_num, Tg::MAX_GRID_SIZE_X) << std::endl;
+
+  std::cout << "macu 2\n";
   dim3 block (block_size);
   dim3 grid(min(blocks_num, Tg::MAX_GRID_SIZE_X), divUp(blocks_num, Tg::MAX_GRID_SIZE_X));
+  std::cout << "macu 3\n";
 
   trianglesGeneratorKernel<<<grid, block>>>(tg);
+  std::cout << "macu 4\n";
   cudaSafeCall ( cudaGetLastError () );
+  std::cout << "macu 5\n";
   cudaSafeCall (cudaDeviceSynchronize ());
+  std::cout << "macu 6\n";
 }

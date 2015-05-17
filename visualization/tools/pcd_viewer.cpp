@@ -211,8 +211,58 @@ pp_callback (const pcl::visualization::PointPickingEvent& event, void* cookie)
     event.getPoint (pos.x, pos.y, pos.z);
     p->addText3D<pcl::PointXYZ> (ss.str (), pos, 0.0005, 1.0, 1.0, 1.0, ss.str ());
   }
-  
+
 }
+
+
+void keyboardCallback (const pcl::visualization::KeyboardEvent& event, void* /*cookie*/)
+{
+  // std::cout << "key code " << event.getKeyCode() << std::endl;
+  // std::cout << "key sym  " << event.getKeySym() << std::endl;
+
+
+  std::vector<pcl::visualization::Camera> cameras;
+  p->getCameras(cameras);
+  // std::cout << "have " << cameras.size() << " cameras" << std::endl;
+  if (cameras.size() < 1)
+  {
+    std::cout << "no camera, returning from keyboard handler" << std::endl;
+    return;
+  }
+  pcl::visualization::Camera cam = cameras[0];
+
+  // std::cout << "cam focal " << cam.focal[0] << " " << cam.focal[1] << " " << cam.focal[2] << " " << std::endl;
+  // std::cout << "cam pos   " << cam.pos[0] << " " << cam.pos[1] << " " << cam.pos[2] << " " << std::endl;
+  // std::cout << "cam view  " << cam.view[0] << " " << cam.view[1] << " " << cam.view[2] << " " << std::endl;
+
+
+  std::string keySym = event.getKeySym();
+
+  double dirX = cam.focal[0] - cam.pos[0];
+  double dirY = cam.focal[1] - cam.pos[1];
+  double dirZ = cam.focal[2] - cam.pos[2];
+  double len = sqrt(dirX*dirX + dirY*dirY + dirZ*dirZ);
+  dirX /= len;
+  dirY /= len;
+  dirZ /= len;
+
+  // std::cout << "dirX/dirY/dirZ " << dirX << " " << dirY << " " << dirZ << std::endl;
+
+  if (keySym == "Up" && event.keyDown())
+  {
+    p->setCameraPosition(cam.pos  [0] + 0.1 * dirX, cam.pos  [1] + 0.1 * dirY, cam.pos  [2] + 0.1 * dirZ,
+                         cam.focal[0] + 0.1 * dirX, cam.focal[1] + 0.1 * dirY, cam.focal[2] + 0.1 * dirZ,
+                         cam.view [0]             , cam.view [1]             , cam.view [2]             );
+  }
+  else if (keySym == "Down")
+  {
+    p->setCameraPosition(cam.pos  [0] - 0.1 * dirX, cam.pos  [1] - 0.1 * dirY, cam.pos  [2] - 0.1 * dirZ,
+                         cam.focal[0] - 0.1 * dirX, cam.focal[1] - 0.1 * dirY, cam.focal[2] - 0.1 * dirZ,
+                         cam.view [0]             , cam.view [1]             , cam.view [2]             );
+  }
+
+}
+
 
 /* ---[ */
 int
@@ -506,6 +556,9 @@ main (int argc, char** argv)
                                            rotation (0, 1),              rotation (1, 1),              rotation (2, 1));
       }
     }
+
+    // Set keyboard callbacks
+    p->registerKeyboardCallback (keyboardCallback);
 
     // Multiview enabled?
     if (mview)

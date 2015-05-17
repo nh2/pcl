@@ -41,6 +41,7 @@
 #include <pcl/pcl_macros.h>
 #include <pcl/gpu/containers/device_array.h>
 #include <Eigen/Core>
+#include "cuda_runtime.h"
 
 namespace pcl
 {
@@ -63,7 +64,7 @@ namespace pcl
       };
     
       /** \brief Point type. */
-      typedef pcl::PointXYZ PointType;
+      typedef float4 MeshPointType;
       
       /** \brief Smart pointer. */
       typedef boost::shared_ptr<MarchingCubes> Ptr;
@@ -79,8 +80,8 @@ namespace pcl
           * \param[in] triangles_buffer Buffer for triangles. Its size determines max extracted triangles. If empty, it will be allocated with default size will be used.          
           * \return Array with triangles. Each 3 consequent poits belond to a single triangle. The returned array points to 'triangles_buffer' data.
           */
-      DeviceArray<PointType> 
-      run(const TsdfVolume& tsdf, DeviceArray<PointType>& triangles_buffer);
+      DeviceArray<MeshPointType>
+      run(const TsdfVolume& tsdf, DeviceArray<MeshPointType>& triangles_buffer, const uchar4* colors);
 
     private:             
       /** \brief Edge table for marching cubes  */

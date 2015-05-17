@@ -87,6 +87,18 @@ namespace pcl
       void
       fetchColors (const DeviceArray<PointType>& cloud, DeviceArray<RGB>& colors) const; 
 
+      /** \brief Downloads color volume from GPU memory.           
+        * \param[out] voxel_colors Array with color values. If volume resolution is 512x512x512, then for voxel (x,y,z) the color value can be retrieved as volume[512*512*z + 512*y + x];
+        */
+      void
+      downloadVoxelColors (std::vector<uint32_t>& voxel_colors) const;
+
+      /** \brief Uploads color volume and according voxel weights to GPU memory
+        * \param[out] voxel_colors Array with color values. if volume resolution is 512x512x512, then for voxel (x,y,z) color value will be read from volume[512*512*z + 512*y + x];
+        */
+      void
+      uploadVoxelColors(const std::vector<uint32_t>& voxel_colors);
+
     private:
       /** \brief Volume resolution */
       Eigen::Vector3i resolution_;

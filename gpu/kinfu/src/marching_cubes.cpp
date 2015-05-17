@@ -56,20 +56,24 @@ pcl::gpu::MarchingCubes::MarchingCubes()
 
 pcl::gpu::MarchingCubes::~MarchingCubes() {}
 
-DeviceArray<pcl::gpu::MarchingCubes::PointType> 
-pcl::gpu::MarchingCubes::run(const TsdfVolume& tsdf, DeviceArray<PointType>& triangles_buffer)
+DeviceArray<pcl::gpu::MarchingCubes::MeshPointType>
+pcl::gpu::MarchingCubes::run(const TsdfVolume& tsdf, DeviceArray<MeshPointType>& triangles_buffer, const uchar4* colors)
 {  
   if (triangles_buffer.empty())
-    triangles_buffer.create(DEFAULT_TRIANGLES_BUFFER_SIZE);
+    // triangles_buffer.create(DEFAULT_TRIANGLES_BUFFER_SIZE);
+    triangles_buffer.create(6000000 * 2);
   occupied_voxels_buffer_.create(3, static_cast<int> (triangles_buffer.size () / 3));    
 
   device::bindTextures(edgeTable_, triTable_, numVertsTable_);
   
   int active_voxels = device::getOccupiedVoxels(tsdf.data(), occupied_voxels_buffer_);  
+
+  std::cout << "active_voxels " << active_voxels << std::endl;
+
   if(!active_voxels)
   {
     device::unbindTextures();
-    return DeviceArray<PointType>();
+    return DeviceArray<MeshPointType>();
   }
 
   DeviceArray2D<int> occupied_voxels(3, active_voxels, occupied_voxels_buffer_.ptr(), occupied_voxels_buffer_.step());
@@ -77,10 +81,10 @@ pcl::gpu::MarchingCubes::run(const TsdfVolume& tsdf, DeviceArray<PointType>& tri
   int total_vertexes = device::computeOffsetsAndTotalVertexes(occupied_voxels);
   
   float3 volume_size = device_cast<const float3>(tsdf.getSize());
-  device::generateTriangles(tsdf.data(), occupied_voxels, volume_size, (DeviceArray<device::PointType>&)triangles_buffer);
+  device::generateTriangles(tsdf.data(), occupied_voxels, volume_size, (DeviceArray<device::MeshPointType>&)triangles_buffer, colors);
     
   device::unbindTextures();
-  return DeviceArray<PointType>(triangles_buffer.ptr(), total_vertexes);
+  return DeviceArray<MeshPointType>(triangles_buffer.ptr(), total_vertexes);
 }
 
 
