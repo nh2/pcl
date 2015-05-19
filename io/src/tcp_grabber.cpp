@@ -145,6 +145,7 @@ pcl::TCPGrabber::processGrabbing ()
   asio::io_service io_service;
 
   tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), 1234));
+  acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
 
   // socket accept loop
   accept_loop:
