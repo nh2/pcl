@@ -792,9 +792,31 @@ struct KinFuApp
   void
   cropFace()
   {
+    // TODO: Put this somewhere else
+    system("meshlabserver -i mesh.ply -o mesh-clean.ply -s /home/cam/clean.mlx -om vc vn");
+    system("/home/cam/opt/vrippack-0.31/bin/plyxform -r 180 0 0 < mesh-clean.ply > mesh-rotated.ply");
+    system("/home/cam/opt/vrippack-0.31/bin/ply2asc mesh-rotated.ply > mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/(.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?)/$1 $2 $3 $7 $8 $9 ${10} $4 $5 $6/g' mesh-rotated.asc.ply");
+
+    system("perl -p -i -e 's/property float nx/property float nxXXX/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property float ny/property float nyXXX/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property float nz/property float nzXXX/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property uchar red/property uchar redXXX/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property uchar green/property uchar greenXXX/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property uchar blue/property uchar blueXXX/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property uchar alpha/property uchar alphaXXX/g' mesh-rotated.asc.ply");
+
+    system("perl -p -i -e 's/property float nxXXX/property uchar red/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property float nyXXX/property uchar green/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property float nzXXX/property uchar blue/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property uchar redXXX/property uchar alpha/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property uchar greenXXX/property float nx/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property uchar blueXXX/property float ny/g' mesh-rotated.asc.ply");
+    system("perl -p -i -e 's/property uchar alphaXXX/property float nz/g' mesh-rotated.asc.ply");
+
     cout << "Cropping face" << endl;
     pcl::PolygonMesh mesh;
-    pcl::io::loadPLYFile("mesh.ply", mesh);
+    pcl::io::loadPLYFile("mesh-rotated.asc.ply", mesh);
 
     pcl::PCLPointCloud2 meshCloud = mesh.cloud;
 
