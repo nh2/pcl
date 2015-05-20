@@ -57,6 +57,11 @@
 #define KINFU_DEFAULT_DEPTH_FOCAL_X 585.f
 #define KINFU_DEFAULT_DEPTH_FOCAL_Y 585.f
 
+#define ETRON_FOCAL_X 882.f
+#define ETRON_FOCAL_Y 885.f
+#define ETRON_PRINCIPAL_X 339.f
+#define ETRON_PRINCIPAL_Y 264.f
+
 namespace pcl
 {
   namespace gpu
