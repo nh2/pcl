@@ -62,6 +62,8 @@
 #include <pcl/io/oni_grabber.h>
 #include <pcl/io/pcd_grabber.h>
 #include <pcl/exceptions.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/surface/simplification_remove_unused_vertices.h>
 
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include "evaluation.h"
@@ -788,6 +790,80 @@ struct KinFuApp
   }
   
   void
+  cropFace()
+  {
+    cout << "Cropping face" << endl;
+    pcl::PolygonMesh mesh;
+    pcl::io::loadPLYFile("mesh.ply", mesh);
+
+    pcl::PCLPointCloud2 meshCloud = mesh.cloud;
+
+    // Cut back of head
+    pcl::PCLPointCloud2::ConstPtr meshCloudPtr = boost::make_shared<pcl::PCLPointCloud2>(meshCloud);
+    pcl::PassThrough<PCLPointCloud2> pass;
+    pass.setInputCloud(meshCloudPtr);
+    pass.setFilterFieldName ("z");
+    pass.setFilterLimits (-0.21, 100000);
+    pcl::PCLPointCloud2::Ptr cloud_filtered_ptr (new pcl::PCLPointCloud2);
+    pass.setKeepOrganized(true);
+    pass.setUserFilterValue(0.0);
+    pass.filter(*cloud_filtered_ptr);
+    pcl::PCLPointCloud2 cloud_filtered = *cloud_filtered_ptr;
+
+    // float magic = 9999999.9;
+    float magic = 0.0;
+
+    // Cut top of head
+    pcl::PCLPointCloud2::ConstPtr meshCloudPtr2 = boost::make_shared<pcl::PCLPointCloud2>(cloud_filtered);
+    pcl::PassThrough<PCLPointCloud2> pass2;
+    pass2.setInputCloud(meshCloudPtr2);
+    pass2.setFilterFieldName ("y");
+    pass2.setFilterLimits (-100000, -0.22);
+    pcl::PCLPointCloud2::Ptr cloud_filtered_ptr2 (new pcl::PCLPointCloud2);
+    pass2.setKeepOrganized(true);
+    pass2.setUserFilterValue(magic);
+    pass2.filter(*cloud_filtered_ptr2);
+
+
+    mesh.cloud = *cloud_filtered_ptr2;
+
+    pcl::PointCloud<PointXYZ> meshcloud_sane;
+    fromPCLPointCloud2(mesh.cloud, meshcloud_sane);
+
+    std::vector< pcl::Vertices > new_polygons;
+
+    for (int i = 0; i < mesh.polygons.size(); ++i)
+    {
+      pcl::Vertices poly = mesh.polygons[i];
+      bool acceptable = true;
+      for (int k = 0; k < poly.vertices.size(); ++k)
+      {
+        uint32_t ix = poly.vertices[k];
+        if (meshcloud_sane[ix].x == magic) {
+          acceptable = false;
+          break;
+        }
+      }
+      if (acceptable) {
+        new_polygons.push_back(poly);
+      }
+    }
+
+    mesh.polygons = new_polygons;
+
+    pcl::PolygonMesh mesh_cleaned;
+    pcl::surface::SimplificationRemoveUnusedVertices simplifier;
+    simplifier.simplify(mesh, mesh_cleaned);
+
+    cout << "Saving mesh to to 'mesh-cropped.ply'... " << flush;
+    pcl::io::savePLYFile("mesh-cropped.ply", mesh_cleaned);
+    cout << "done" << endl;
+    // pcl::io::loadPLYFile("mesh-cropped.ply", mesh);
+    // pcl::io::savePLYFile("mesh-cropped2.ply", mesh);
+
+  }
+
+  void
   toggleEvaluationMode(const string& eval_folder, const string& match_file = string())
   {
     evaluation_ptr_ = Evaluation::Ptr( new Evaluation(eval_folder) );
@@ -1225,6 +1301,7 @@ struct KinFuApp
     cout << "    B    : toggle volume bounds" << endl;
     cout << "    *    : toggle scene view painting ( requires registration mode )" << endl;
     cout << "    C    : clear clouds" << endl;    
+    cout << "    D    : crop to face" << endl;
     cout << "   1,2,3 : save cloud to PCD(binary), PCD(ASCII), PLY(ASCII)" << endl;
     cout << "    7,8  : save mesh to PLY, VTK" << endl;
     cout << "   X, V  : TSDF volume utility" << endl;
@@ -1303,6 +1380,7 @@ struct KinFuApp
       case (int)'m': case (int)'M': app->scene_cloud_view_.toggleExtractionMode (); break;
       case (int)'n': case (int)'N': app->scene_cloud_view_.toggleNormals (); break;      
       case (int)'c': case (int)'C': app->scene_cloud_view_.clearClouds (true); break;
+      case (int)'d': case (int)'D': app->cropFace(); break;
       case (int)'r': case (int)'R': app->kinfu_.reset(); break;
       case (int)'i': case (int)'I': app->toggleIndependentCamera (); break;
       case (int)'b': case (int)'B': app->scene_cloud_view_.toggleCube(app->kinfu_.volume().getSize()); break;
