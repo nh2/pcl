@@ -1,0 +1,10 @@
+<!DOCTYPE FilterScript>
+<FilterScript>
+ <filter name="Merge Close Vertices">
+  <Param type="RichAbsPerc" value="7.2721e-05" min="0" name="Threshold" max="0.00727212"/>
+ </filter>
+ <filter name="Remove Isolated pieces (wrt Face Num.)">
+  <Param type="RichInt" value="90000" name="MinComponentSize"/>
+ </filter>
+ <filter name="Remove Unreferenced Vertex"/>
+</FilterScript>
