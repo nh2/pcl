@@ -64,6 +64,7 @@
 #include <pcl/exceptions.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/surface/simplification_remove_unused_vertices.h>
+#include <pcl/common/transforms.h>
 
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include "evaluation.h"
@@ -848,7 +849,7 @@ struct KinFuApp
     pcl::PassThrough<PCLPointCloud2> pass;
     pass.setInputCloud(meshCloudPtr);
     pass.setFilterFieldName ("z");
-    pass.setFilterLimits (nose.z - 0.03, 100000); // TODO scale with distance
+    pass.setFilterLimits (nose.z - 0.03, 1000000); // TODO scale with distance
     pcl::PCLPointCloud2::Ptr cloud_filtered_ptr (new pcl::PCLPointCloud2);
     pass.setKeepOrganized(true);
     pass.setUserFilterValue(0.0);
@@ -868,7 +869,6 @@ struct KinFuApp
     pass2.setKeepOrganized(true);
     pass2.setUserFilterValue(magic);
     pass2.filter(*cloud_filtered_ptr2);
-
 
     mesh.cloud = *cloud_filtered_ptr2;
 
@@ -899,6 +899,18 @@ struct KinFuApp
     pcl::PolygonMesh mesh_cleaned;
     pcl::surface::SimplificationRemoveUnusedVertices simplifier;
     simplifier.simplify(mesh, mesh_cleaned);
+
+
+    // Translate
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_before (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_after (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    fromPCLPointCloud2(mesh_cleaned.cloud, *translated_before);
+    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+    transform.translation() << -nose.x, -nose.y, -nose.z;
+    pcl::transformPointCloud (*translated_before, *translated_after, transform);
+
+    pcl::PCLPointCloud2 to_be_cut;
+    toPCLPointCloud2(*translated_after, mesh_cleaned.cloud);
 
     cout << "Saving mesh to to 'mesh-cropped.ply'... " << flush;
     pcl::io::savePLYFile("mesh-cropped.ply", mesh_cleaned);
