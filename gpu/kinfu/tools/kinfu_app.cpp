@@ -788,7 +788,27 @@ struct KinFuApp
     independent_camera_ = !independent_camera_;
     cout << "Camera mode: " << (independent_camera_ ?  "Independent" : "Bound to Kinect pose") << endl;
   }
-  
+
+  PointXYZ
+  findNose(pcl::PCLPointCloud2 meshcloud)
+  {
+    pcl::PointCloud<PointXYZ> meshcloud_sane;
+    fromPCLPointCloud2(meshcloud, meshcloud_sane);
+
+    float closest_z = -1000000000000000000;
+    PointXYZ nose;
+
+    for (int i = 0; i < meshcloud_sane.size(); ++i) {
+      PointXYZ pt = meshcloud_sane[i];
+      if (pt.z > closest_z) {
+      closest_z = pt.z;
+      nose = pt;
+      }
+    }
+
+    return nose;
+  }
+
   void
   cropFace()
   {
@@ -820,12 +840,15 @@ struct KinFuApp
 
     pcl::PCLPointCloud2 meshCloud = mesh.cloud;
 
+    // Find nose
+    PointXYZ nose = findNose(mesh.cloud);
+
     // Cut back of head
     pcl::PCLPointCloud2::ConstPtr meshCloudPtr = boost::make_shared<pcl::PCLPointCloud2>(meshCloud);
     pcl::PassThrough<PCLPointCloud2> pass;
     pass.setInputCloud(meshCloudPtr);
     pass.setFilterFieldName ("z");
-    pass.setFilterLimits (-0.21, 100000);
+    pass.setFilterLimits (nose.z - 0.03, 100000); // TODO scale with distance
     pcl::PCLPointCloud2::Ptr cloud_filtered_ptr (new pcl::PCLPointCloud2);
     pass.setKeepOrganized(true);
     pass.setUserFilterValue(0.0);
@@ -840,7 +863,7 @@ struct KinFuApp
     pcl::PassThrough<PCLPointCloud2> pass2;
     pass2.setInputCloud(meshCloudPtr2);
     pass2.setFilterFieldName ("y");
-    pass2.setFilterLimits (-100000, -0.22);
+    pass2.setFilterLimits (-100000, nose.y + 0.04);
     pcl::PCLPointCloud2::Ptr cloud_filtered_ptr2 (new pcl::PCLPointCloud2);
     pass2.setKeepOrganized(true);
     pass2.setUserFilterValue(magic);
