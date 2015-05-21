@@ -907,13 +907,26 @@ struct KinFuApp
     // Translate
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_before (new pcl::PointCloud<pcl::PointXYZRGB> ());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_after (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_after2 (new pcl::PointCloud<pcl::PointXYZRGB> ());
     fromPCLPointCloud2(mesh_cleaned.cloud, *translated_before);
-    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-    transform.translation() << -nose.x, -nose.y, -nose.z;
-    pcl::transformPointCloud (*translated_before, *translated_after, transform);
+    // Eigen::Affine3f transform = Eigen::Scaling(2000.0, 2000.0, 2000.0);
+    // transform.translation() << -nose.x, -nose.y, -nose.z;
+
+    Eigen::Affine3f transform_translate = Eigen::Affine3f::Identity();
+    transform_translate.translation() << -nose.x, -nose.y, -nose.z;
+    pcl::transformPointCloud (*translated_before, *translated_after, transform_translate);
+
+    // Scaling matrix
+    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    transform(0,0) = 2000.0;
+    transform(1,1) = 2000.0;
+    transform(2,2) = 2000.0;
+    //    (row, column)
+
+    pcl::transformPointCloud (*translated_after, *translated_after2, transform);
 
     pcl::PCLPointCloud2 to_be_cut;
-    toPCLPointCloud2(*translated_after, mesh_cleaned.cloud);
+    toPCLPointCloud2(*translated_after2, mesh_cleaned.cloud);
 
     cout << "Saving mesh to to 'mesh-cropped.ply'... " << flush;
     pcl::io::savePLYFile("mesh-cropped.ply", mesh_cleaned);
