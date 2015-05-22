@@ -852,7 +852,7 @@ struct KinFuApp
     pcl::PassThrough<PCLPointCloud2> pass;
     pass.setInputCloud(meshCloudPtr);
     pass.setFilterFieldName ("z");
-    pass.setFilterLimits (nose.z - 0.03, 1000000); // TODO scale with distance
+    pass.setFilterLimits (nose.z - 0.04, 1000000); // TODO scale with distance
     pcl::PCLPointCloud2::Ptr cloud_filtered_ptr (new pcl::PCLPointCloud2);
     pass.setKeepOrganized(true);
     pass.setUserFilterValue(0.0);
@@ -928,12 +928,22 @@ struct KinFuApp
     pcl::PCLPointCloud2 to_be_cut;
     toPCLPointCloud2(*translated_after2, mesh_cleaned.cloud);
 
-    cout << "Saving mesh to to 'mesh-cropped.ply'... " << flush;
-    pcl::io::savePLYFile("mesh-cropped.ply", mesh_cleaned);
+    cout << "Saving mesh to to 'mesh-cropped-uncleaned.ply'... " << flush;
+    pcl::io::savePLYFile("mesh-cropped-uncleaned.ply", mesh_cleaned);
     cout << "done" << endl;
     // pcl::io::loadPLYFile("mesh-cropped.ply", mesh);
     // pcl::io::savePLYFile("mesh-cropped2.ply", mesh);
 
+    res |= system("meshlabserver -i mesh-cropped-uncleaned.ply -o mesh-cropped.ply -s /home/cam/clean-small.mlx -om vc vn");
+    assert(res == 0);
+  }
+
+  void
+  processEtronStream()
+  {
+    scene_cloud_view_.showMesh(kinfu_, integrate_colors_);
+    writeMesh ((int)'7' - (int)'0');
+    cropFace();
   }
 
   void
@@ -1459,6 +1469,7 @@ struct KinFuApp
       case (int)'b': case (int)'B': app->scene_cloud_view_.toggleCube(app->kinfu_.volume().getSize()); break;
       case (int)'7': case (int)'8': app->writeMesh (key - (int)'0'); break;
       case (int)'1': case (int)'2': case (int)'3': app->writeCloud (key - (int)'0'); break;      
+      case (int)'F': app->processEtronStream(); break;
       case '*': app->image_view_.toggleImagePaint (); break;
 
       case (int)'x': case (int)'X':
