@@ -172,6 +172,9 @@ pcl::TCPGrabber::processGrabbing ()
 
       if (error_code)
       {
+	boost::array<unsigned char, 640*480*3> dummy_rgb_buf;
+	boost::array<unsigned short, 640*480> dummy_depth_buf;
+	image_signal_->operator() (false, dummy_rgb_buf, dummy_depth_buf);
         goto accept_loop;
         // PCL_THROW_EXCEPTION (pcl::IOException, "TCPGrabber: Could not read from socket");
       }
@@ -179,7 +182,7 @@ pcl::TCPGrabber::processGrabbing ()
       // publish frame
       if (num_slots<sig_cb_tcp_image> () > 0)
       {
-        image_signal_->operator() (rgb_buf, depth_buf);
+        image_signal_->operator() (true, rgb_buf, depth_buf);
       }
 
       const double capture_time = stop_watch.getTimeSeconds ();

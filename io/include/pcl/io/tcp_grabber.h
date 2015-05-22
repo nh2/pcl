@@ -75,7 +75,7 @@ namespace pcl
       } Mode;
 
       //define callback signature typedefs
-      typedef void (sig_cb_tcp_image) (const boost::array<unsigned char, 640*480*3>&, const boost::array<unsigned short, 640*480>&);
+      typedef void (sig_cb_tcp_image) (bool, const boost::array<unsigned char, 640*480*3>&, const boost::array<unsigned short, 640*480>&);
 
     public:
       /** \brief Constructor */
