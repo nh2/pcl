@@ -1408,7 +1408,7 @@ struct KinFuApp
 
   bool registration_;
   bool integrate_colors_;  
-  bool pcd_source_;
+  bool pcd_source_ = false;
   float focal_length_;
   
   pcl::Grabber& capture_;
