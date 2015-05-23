@@ -147,8 +147,13 @@ pcl::TCPGrabber::processGrabbing ()
   tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), 1234));
   acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
 
+  boost::array<unsigned char, 640 * 480 * 3> *rgb_buf_ptr = new boost::array<unsigned char, 640 * 480 * 3>;
+  boost::array<unsigned short, 640 * 480> *depth_buf_ptr = new boost::array<unsigned short, 640 * 480>;
+  boost::array<unsigned char, 640 * 480 * 3> *dummy_rgb_buf_ptr = new boost::array<unsigned char, 640 * 480 * 3>;
+  boost::array<unsigned short, 640 * 480> *dummy_depth_buf_ptr = new boost::array<unsigned short, 640 * 480>;
+
   // socket accept loop
-  accept_loop:
+accept_loop:
   for (;;)
   {
     tcp::socket socket(io_service);
@@ -156,25 +161,20 @@ pcl::TCPGrabber::processGrabbing ()
     acceptor.accept(socket);
     std::cout << "TCPGrabber: Accepted client" << std::endl;
 
-    boost::array<unsigned char, 640*480*3> rgb_buf;
-    boost::array<unsigned short, 640*480> depth_buf;
-
     bool continue_grabbing = true;
     while (continue_grabbing)
     {
       // Acquire frame
 
       boost::system::error_code error_code;
-      asio::read(socket, asio::buffer(rgb_buf), boost::asio::transfer_at_least(rgb_buf.size()), error_code);
-      asio::read(socket, asio::buffer(depth_buf), boost::asio::transfer_at_least(depth_buf.size()*2), error_code);
+      asio::read(socket, asio::buffer(*rgb_buf_ptr), boost::asio::transfer_at_least(rgb_buf_ptr->size()), error_code);
+      asio::read(socket, asio::buffer(*depth_buf_ptr), boost::asio::transfer_at_least(depth_buf_ptr->size()*2), error_code);
 
       // std::cout << "TCPGrabber: got frame" << std::endl;
 
       if (error_code)
       {
-	boost::array<unsigned char, 640*480*3> dummy_rgb_buf;
-	boost::array<unsigned short, 640*480> dummy_depth_buf;
-	image_signal_->operator() (false, dummy_rgb_buf, dummy_depth_buf);
+		image_signal_->operator() (false, *dummy_rgb_buf_ptr, *dummy_depth_buf_ptr);
         goto accept_loop;
         // PCL_THROW_EXCEPTION (pcl::IOException, "TCPGrabber: Could not read from socket");
       }
@@ -182,7 +182,7 @@ pcl::TCPGrabber::processGrabbing ()
       // publish frame
       if (num_slots<sig_cb_tcp_image> () > 0)
       {
-        image_signal_->operator() (true, rgb_buf, depth_buf);
+        image_signal_->operator() (true, *rgb_buf_ptr, *depth_buf_ptr);
       }
 
       const double capture_time = stop_watch.getTimeSeconds ();
