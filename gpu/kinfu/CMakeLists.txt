@@ -42,6 +42,7 @@ if (build)
     endif()
 
     #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-gencode;arch=compute_11,code=compute_11;-gencode;arch=compute_12,code=compute_12")
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-gencode;arch=compute_20,code=compute_20")
 
     if(TRUE)
         #list(REMOVE_ITEM cuda ${est})
