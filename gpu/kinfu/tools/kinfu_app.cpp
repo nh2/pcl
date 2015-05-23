@@ -369,12 +369,12 @@ struct ImageView
     if (viz_)
     {
         viewerScene_ = pcl::visualization::ImageViewer::Ptr(new pcl::visualization::ImageViewer);
-        viewerDepth_ = pcl::visualization::ImageViewer::Ptr(new pcl::visualization::ImageViewer);
+        // viewerDepth_ = pcl::visualization::ImageViewer::Ptr(new pcl::visualization::ImageViewer);
 
         viewerScene_->setWindowTitle ("View3D from ray tracing");
         viewerScene_->setPosition (0, 0);
-        viewerDepth_->setWindowTitle ("Kinect Depth stream");
-        viewerDepth_->setPosition (640, 0);
+        // viewerDepth_->setWindowTitle ("Kinect Depth stream");
+        // viewerDepth_->setPosition (640, 0);
         //viewerColor_.setWindowTitle ("Kinect RGB stream");
     }
   }
@@ -417,8 +417,8 @@ struct ImageView
   void
   showDepth (const PtrStepSz<const unsigned short>& depth) 
   { 
-     if (viz_)
-       viewerDepth_->showShortImage (depth.data, depth.cols, depth.rows, 0, 5000, true); 
+     // if (viz_)
+     //   viewerDepth_->showShortImage (depth.data, depth.cols, depth.rows, 0, 5000, true); 
   }
   
   void
@@ -431,8 +431,8 @@ struct ImageView
     vector<unsigned short> data;
     generated_depth_.download(data, c);
 
-    if (viz_)
-        viewerDepth_->showShortImage (&data[0], generated_depth_.cols(), generated_depth_.rows(), 0, 5000, true);
+    // if (viz_)
+    //     viewerDepth_->showShortImage (&data[0], generated_depth_.cols(), generated_depth_.rows(), 0, 5000, true);
   }
 
   void
@@ -710,9 +710,9 @@ struct KinFuApp
     {
         scene_cloud_view_.cloud_viewer_->registerKeyboardCallback (keyboard_callback, (void*)this);
         image_view_.viewerScene_->registerKeyboardCallback (keyboard_callback, (void*)this);
-        image_view_.viewerDepth_->registerKeyboardCallback (keyboard_callback, (void*)this);
+        // image_view_.viewerDepth_->registerKeyboardCallback (keyboard_callback, (void*)this);
 
-        // scene_cloud_view_.toggleCube(volume_size);
+        scene_cloud_view_.toggleCube(volume_size);
     }
   }
 
