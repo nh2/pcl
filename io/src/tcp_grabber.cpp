@@ -149,8 +149,6 @@ pcl::TCPGrabber::processGrabbing ()
 
   boost::array<unsigned char, 640 * 480 * 3> *rgb_buf_ptr = new boost::array<unsigned char, 640 * 480 * 3>;
   boost::array<unsigned short, 640 * 480> *depth_buf_ptr = new boost::array<unsigned short, 640 * 480>;
-  boost::array<unsigned char, 640 * 480 * 3> *dummy_rgb_buf_ptr = new boost::array<unsigned char, 640 * 480 * 3>;
-  boost::array<unsigned short, 640 * 480> *dummy_depth_buf_ptr = new boost::array<unsigned short, 640 * 480>;
 
   // socket accept loop
 accept_loop:
@@ -174,7 +172,7 @@ accept_loop:
 
       if (error_code)
       {
-		image_signal_->operator() (false, *dummy_rgb_buf_ptr, *dummy_depth_buf_ptr);
+		image_signal_->operator() (false, *rgb_buf_ptr, *depth_buf_ptr);
         goto accept_loop;
         // PCL_THROW_EXCEPTION (pcl::IOException, "TCPGrabber: Could not read from socket");
       }

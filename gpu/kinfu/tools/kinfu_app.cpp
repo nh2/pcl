@@ -1077,11 +1077,11 @@ struct KinFuApp
   void source_cb_tcp(bool continue_, const boost::array<unsigned char, 640*480*3> &rgb_buf, const boost::array<unsigned short, 640*480>& depth_buf)
   {
     if (!continue_)
-      {
-	std::cout << "QUIT!" << std::endl;
-	processEtronStream();
-	return;
-      }
+	{
+		std::cout << "QUIT!" << std::endl;
+		processEtronStream();
+		return;
+    }
 
     {
       boost::mutex::scoped_try_lock lock(data_ready_mutex_);
