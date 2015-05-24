@@ -712,7 +712,7 @@ struct KinFuApp
         image_view_.viewerScene_->registerKeyboardCallback (keyboard_callback, (void*)this);
         // image_view_.viewerDepth_->registerKeyboardCallback (keyboard_callback, (void*)this);
 
-        scene_cloud_view_.toggleCube(volume_size);
+        // scene_cloud_view_.toggleCube(volume_size);
     }
   }
 
