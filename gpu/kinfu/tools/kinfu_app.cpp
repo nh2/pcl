@@ -491,6 +491,10 @@ struct SceneCloudView
     {
         cloud_viewer_ = pcl::visualization::PCLVisualizer::Ptr( new pcl::visualization::PCLVisualizer("Scene Cloud Viewer") );
 
+		// Hide cloud viewer
+		HWND hWnd = (HWND)cloud_viewer_->getRenderWindow()->GetGenericWindowId();
+		ShowWindow(hWnd, SW_HIDE);
+
         cloud_viewer_->setBackgroundColor (0, 0, 0);
         cloud_viewer_->addCoordinateSystem (1.0, "global");
         cloud_viewer_->initCameraParameters ();
