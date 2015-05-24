@@ -77,6 +77,14 @@
 
 #include "camera_pose.h"
 
+#include <assert.h>
+#include <fstream>
+#include <iostream>
+#include <iterator>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #ifdef HAVE_OPENCV  
   #include <opencv2/highgui/highgui.hpp>
   #include <opencv2/imgproc/imgproc.hpp>
@@ -91,6 +99,8 @@ using namespace pcl;
 using namespace pcl::gpu;
 using namespace Eigen;
 namespace pc = pcl::console;
+
+int fixPlyFile(const char *meshIn, const char *meshOut);
 
 namespace pcl
 {
@@ -816,27 +826,11 @@ struct KinFuApp
   {
     // TODO: Put this somewhere else
     int res = 0;
-    res |= system("meshlabserver -i mesh.ply -o mesh-clean.ply -s /home/cam/clean.mlx -om vc vn");
-    res |= system("/home/cam/opt/vrippack-0.31/bin/plyxform -r 180 0 0 < mesh-clean.ply > mesh-rotated.ply");
-    res |= system("/home/cam/opt/vrippack-0.31/bin/ply2asc mesh-rotated.ply > mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/(.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?)/$1 $2 $3 $7 $8 $9 ${10} $4 $5 $6/g' mesh-rotated.asc.ply");
-
-    res |= system("perl -p -i -e 's/property float nx/property float nxXXX/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property float ny/property float nyXXX/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property float nz/property float nzXXX/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property uchar red/property uchar redXXX/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property uchar green/property uchar greenXXX/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property uchar blue/property uchar blueXXX/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property uchar alpha/property uchar alphaXXX/g' mesh-rotated.asc.ply");
-
-    res |= system("perl -p -i -e 's/property float nxXXX/property uchar red/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property float nyXXX/property uchar green/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property float nzXXX/property uchar blue/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property uchar redXXX/property uchar alpha/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property uchar greenXXX/property float nx/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property uchar blueXXX/property float ny/g' mesh-rotated.asc.ply");
-    res |= system("perl -p -i -e 's/property uchar alphaXXX/property float nz/g' mesh-rotated.asc.ply");
-    assert(res == 0);
+    res = system("meshlabserver -i mesh.ply -o mesh-clean.ply -s ..\\..\\pcl\\clean.mlx -om vc vn");
+	assert(res == 0);
+    res = system("python ..\\..\\pcl\\ply2asc.py mesh-clean.ply mesh-rotated.asc.ply");
+	assert(res == 0);
+	fixPlyFile("mesh-rotated.asc.ply", "mesh-rotated-fixed.asc.ply");
 
     cout << "Cropping face" << endl;
     pcl::PolygonMesh mesh;
@@ -934,7 +928,7 @@ struct KinFuApp
     // pcl::io::loadPLYFile("mesh-cropped.ply", mesh);
     // pcl::io::savePLYFile("mesh-cropped2.ply", mesh);
 
-    res |= system("meshlabserver -i mesh-cropped-uncleaned.ply -o mesh-cropped.ply -s /home/cam/clean-small.mlx -om vc vn");
+    res = system("meshlabserver -i mesh-cropped-uncleaned.ply -o mesh-cropped.ply -s ..\\..\\pcl\\clean-small.mlx -om vc vn");
     assert(res == 0);
   }
 
@@ -1781,4 +1775,94 @@ main (int argc, char* argv[])
 #endif
 
   return 0;
+}
+
+// Formats an ASCII .ply file in the order that PCL expects it to be in,
+// reordering some properties (switching colour and normal columns).
+
+const int COL_NUM = 10;
+
+// Order of properties that we desire, switching colour and normal columns:
+//   0 property float x       ->  0 property float x
+//   1 property float y       ->  1 property float y
+//   2 property float z       ->  2 property float z
+//   3 property float nx      ->  6 property uchar red
+//   4 property float ny      ->  7 property uchar green
+//   5 property float nz      ->  8 property uchar blue
+//   6 property uchar red     ->  9 property uchar alpha
+//   7 property uchar green   ->  3 property float nx
+//   8 property uchar blue    ->  4 property float ny
+//   9 property uchar alpha   ->  5 property float nz
+int col_order[COL_NUM] = { 0, 1, 2, 6, 7, 8, 9, 3, 4, 5 };
+
+int fixPlyFile(const char *meshIn, const char *meshOut)
+{
+	ifstream inputFile;
+	ofstream outputFile;
+	string line;
+	inputFile.open(meshIn);
+	outputFile.open(meshOut);
+	vector<string> found_properties;
+	bool fixing_properties = false;
+	// Iterate over the lines of the .ply file
+	while (!inputFile.eof()) {
+		getline(inputFile, line);
+
+		// First find "element vertex" line, then start fixing properties.
+		if (line.find("element vertex") == 0) {
+			outputFile << line << endl;
+			fixing_properties = true;
+		}
+		// Save any "property ..." line that's after "element vertex", we want to reorder them.
+		else if (line.find("property") == 0 && fixing_properties) {
+			found_properties.push_back(line);
+		}
+		// When we're at the next element (usually "element face"), we're past all properties.
+		else if (line.find("element") == 0) {
+			// Now print out all properties in the order we want.
+			assert(found_properties.size() == COL_NUM);
+			for (int i = 0; i < COL_NUM; i++) {
+				outputFile << found_properties[col_order[i]] << endl;
+			}
+			outputFile << line << endl;
+			fixing_properties = false;
+		}
+		// Once we're at end_header, vertices will start.
+		// We want to reorder them to the same order as we did with the headers.
+		else if (line.find("end_header") == 0) {
+			outputFile << line << endl;
+
+			// Go over all vertex lines, reordering their columns.
+			while (!inputFile.eof()) {
+				getline(inputFile, line);
+				int start = 0;
+				istringstream linestream(line);
+				vector<string> values;
+				values.assign(istream_iterator<string>(linestream), istream_iterator<string>());
+
+				// Only lines with COL_NUM values on them are vertex lines.
+				if (values.size() == COL_NUM) {
+					// Reorder columns of the line.
+					outputFile << std::setprecision(6);
+					for (int i = 0; i < COL_NUM; i++) {
+						outputFile << values[col_order[i]] << " ";
+					};
+					outputFile << endl;
+				}
+				else {
+					outputFile << line << endl;
+				}
+
+			}
+
+			break;
+		}
+		else {
+			outputFile << line << endl;
+		}
+	}
+	inputFile.close();
+	outputFile.close();
+
+	return 0;
 }
