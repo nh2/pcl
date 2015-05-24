@@ -764,6 +764,10 @@ struct KinFuApp
 			  crop_from_nose_mm_y = val;
 		  else if (!strcmp(tag, "crop_from_nose_mm_z"))
 			  crop_from_nose_mm_z = val;
+		  else if (!strcmp(tag, "radius_from_middle"))
+			  radius_from_middle = val;
+		  else if (!strcmp(tag, "nose_y_displacement"))
+			  nose_y_displacement = val;
 		  else
 			  std::cerr << "WARNING: invalid configuration entry " << tag << std::endl;
 	  }
@@ -849,18 +853,46 @@ struct KinFuApp
     pcl::PointCloud<PointXYZ> meshcloud_sane;
     fromPCLPointCloud2(meshcloud, meshcloud_sane);
 
-    float closest_z = -1000000000000000000;
-    PointXYZ nose;
+	float top_y = -1000000000000000000, bot_y = 1000000000000000000, left_x = 1000000000000000000, right_x = -1000000000000000000;
 
-    for (int i = 0; i < meshcloud_sane.size(); ++i) {
-      PointXYZ pt = meshcloud_sane[i];
-      if (pt.z > closest_z) {
-      closest_z = pt.z;
-      nose = pt;
-      }
-    }
+	for (int i = 0; i < meshcloud_sane.size(); ++i) {
+		PointXYZ pt = meshcloud_sane[i];
+		top_y = max(top_y, pt.y);
+		bot_y = min(bot_y, pt.y);
+		left_x = min(left_x, pt.x);
+		right_x = max(right_x, pt.x);
+	}
 
-    return nose;
+	float closest_z = -1000000000000000000;
+	for (int i = 0; i < meshcloud_sane.size(); ++i) {
+		PointXYZ pt = meshcloud_sane[i];
+		if (pt.z > closest_z) {
+			closest_z = pt.z;
+		}
+	}
+
+	PointXYZ middle;
+	middle.x = (left_x + right_x) / 2;
+	middle.y = nose_y_displacement/size_multiplier + (top_y + bot_y) / 2;
+	middle.z = closest_z;
+
+	PointXYZ nose = middle;
+	float closest_z_in_circle = -1000000000000000000;
+	float squared_radius = (radius_from_middle / size_multiplier)*(radius_from_middle / size_multiplier);
+	for (int i = 0; i < meshcloud_sane.size(); ++i) {
+		PointXYZ pt = meshcloud_sane[i];
+		if (pt.z > closest_z_in_circle) {
+			float diff_x = middle.x - pt.x;
+			float diff_y = middle.y - pt.y;
+			bool in_radius = (diff_x*diff_x + diff_y*diff_y) < squared_radius;
+			if (in_radius) {
+				closest_z_in_circle = pt.z;
+				nose = pt;
+			}
+		}
+	}
+
+	return nose;
   }
 
   void
@@ -1452,6 +1484,8 @@ struct KinFuApp
   float size_multiplier = 2000.f;
   float crop_from_nose_mm_y = 80.f;
   float crop_from_nose_mm_z = 80.f;
+  float radius_from_middle = 25.f;
+  float nose_y_displacement = -15.f;
   
   pcl::Grabber& capture_;
   KinfuTracker kinfu_;
