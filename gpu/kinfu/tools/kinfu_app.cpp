@@ -1073,7 +1073,8 @@ struct KinFuApp
 	{
 		std::cout << "QUIT!" << std::endl;
 		processEtronStream();
-		return;
+		// TODO: Shut down properly, including stopping the (TCP)Grabber so that the socket is free again (avoid TCP_REUSEADDR problems).
+		exit(0);
     }
 
     {
