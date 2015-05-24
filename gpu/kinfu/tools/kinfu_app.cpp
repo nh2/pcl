@@ -746,7 +746,7 @@ struct KinFuApp
 	  int res;
 
 	  while (1) {
-		  res = fscanf(fp, "%s:", &tag);
+		  res = fscanf(fp, "%s", &tag);
 		  res = fscanf(fp, "%f", &val);
 		  if (res == EOF) break;
 
@@ -765,14 +765,14 @@ struct KinFuApp
 		  else if (!strcmp(tag, "crop_from_nose_mm_z"))
 			  crop_from_nose_mm_z = val;
 		  else
-			  std::cout << "WARNING: invalid configuration entry " << tag << std::endl;
+			  std::cerr << "WARNING: invalid configuration entry " << tag << std::endl;
 	  }
 	  fclose(fp);
 
 	  std::cout << "Focal length " << camera_fx << ", " << camera_fy << std::endl;
 	  std::cout << "Principal point " << principal_cx << ", " << principal_cy << std::endl;
 	  std::cout << "Size multiplier " << size_multiplier << std::endl;
-	  std::cout << "Crop from nose: " << crop_from_nose_mm_y << "(y), " << crop_from_nose_mm_z << std::endl;
+	  std::cout << "Crop from nose: " << crop_from_nose_mm_y << "(y), " << crop_from_nose_mm_z << "(z)" << std::endl;
   }
 
   void
@@ -1449,9 +1449,9 @@ struct KinFuApp
   float camera_fy = 885.f;
   float principal_cx = 339.f;
   float principal_cy = 264.f;
-  float size_multiplier = 2000;
-  float crop_from_nose_mm_y = 0.04f;
-  float crop_from_nose_mm_z = 0.04f;
+  float size_multiplier = 2000.f;
+  float crop_from_nose_mm_y = 80.f;
+  float crop_from_nose_mm_z = 80.f;
   
   pcl::Grabber& capture_;
   KinfuTracker kinfu_;
