@@ -824,7 +824,6 @@ struct KinFuApp
   void
   cropFace()
   {
-    // TODO: Put this somewhere else
     int res = 0;
     res = system("meshlabserver -i mesh.ply -o mesh-clean.ply -s ..\\..\\pcl\\clean.mlx -om vc vn");
 	assert(res == 0);
