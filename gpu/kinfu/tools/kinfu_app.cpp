@@ -102,6 +102,7 @@ namespace pc = pcl::console;
 
 int fixPlyFile(const char *meshIn, const char *meshOut);
 
+
 namespace pcl
 {
   namespace gpu
@@ -736,6 +737,44 @@ struct KinFuApp
       evaluation_ptr_->saveAllPoses(kinfu_);
   }
 
+  void parseConfig(char *configPath) {
+	  FILE* fp;
+	  fp = fopen(configPath, "r");
+
+	  char tag[1024];
+	  float val;
+	  int res;
+
+	  while (1) {
+		  res = fscanf(fp, "%s:", &tag);
+		  res = fscanf(fp, "%f", &val);
+		  if (res == EOF) break;
+
+		  if (!strcmp(tag, "camera_fx"))
+			  camera_fx = val;
+		  else if (!strcmp(tag, "camera_fy"))
+			  camera_fy = val;
+		  else if (!strcmp(tag, "principal_cx"))
+			  principal_cx = val;
+		  else if (!strcmp(tag, "principal_cy"))
+			  principal_cy = val;
+		  else if (!strcmp(tag, "size_multiplier"))
+			  size_multiplier = val;
+		  else if (!strcmp(tag, "crop_from_nose_mm_y"))
+			  crop_from_nose_mm_y = val;
+		  else if (!strcmp(tag, "crop_from_nose_mm_z"))
+			  crop_from_nose_mm_z = val;
+		  else
+			  std::cout << "WARNING: invalid configuration entry " << tag << std::endl;
+	  }
+	  fclose(fp);
+
+	  std::cout << "Focal length " << camera_fx << ", " << camera_fy << std::endl;
+	  std::cout << "Principal point " << principal_cx << ", " << principal_cy << std::endl;
+	  std::cout << "Size multiplier " << size_multiplier << std::endl;
+	  std::cout << "Crop from nose: " << crop_from_nose_mm_y << "(y), " << crop_from_nose_mm_z << std::endl;
+  }
+
   void
   initCurrentFrameView ()
   {
@@ -750,8 +789,7 @@ struct KinFuApp
     registration_ = capture_.providesCallback<pcl::ONIGrabber::sig_cb_openni_image_depth_image> ();
     cout << "Registration mode: " << (registration_ ? "On" : "Off (not supported by source)") << endl;
     if (registration_)
-      kinfu_.setDepthIntrinsics(ETRON_FOCAL_X, ETRON_FOCAL_Y, ETRON_PRINCIPAL_X, ETRON_PRINCIPAL_Y);
-      // kinfu_.setDepthIntrinsics(KINFU_DEFAULT_RGB_FOCAL_X, KINFU_DEFAULT_RGB_FOCAL_Y);
+      kinfu_.setDepthIntrinsics(camera_fx, camera_fy, principal_cx, principal_cy);
   }
   
   void
@@ -829,9 +867,9 @@ struct KinFuApp
   cropFace()
   {
     int res = 0;
-    res = system("meshlabserver -i mesh.ply -o mesh-clean.ply -s ..\\..\\pcl\\clean.mlx -om vc vn");
+    res = system("meshlabserver -i mesh.ply -o mesh-clean.ply -s kinfu\\clean.mlx -om vc vn");
 	assert(res == 0);
-    res = system("python ..\\..\\pcl\\ply2asc.py mesh-clean.ply mesh-rotated.asc.ply");
+    res = system("python ply2asc\\ply2asc.py mesh-clean.ply mesh-rotated.asc.ply");
 	assert(res == 0);
 	fixPlyFile("mesh-rotated.asc.ply", "mesh-rotated-fixed.asc.ply");
 
@@ -849,7 +887,7 @@ struct KinFuApp
     pcl::PassThrough<PCLPointCloud2> pass;
     pass.setInputCloud(meshCloudPtr);
     pass.setFilterFieldName ("z");
-    pass.setFilterLimits (nose.z - 0.04, 1000000); // TODO scale with distance
+    pass.setFilterLimits (nose.z - crop_from_nose_mm_z/size_multiplier, 1000000); // TODO scale with distance
     pcl::PCLPointCloud2::Ptr cloud_filtered_ptr (new pcl::PCLPointCloud2);
     pass.setKeepOrganized(true);
     pass.setUserFilterValue(0.0);
@@ -864,7 +902,7 @@ struct KinFuApp
     pcl::PassThrough<PCLPointCloud2> pass2;
     pass2.setInputCloud(meshCloudPtr2);
     pass2.setFilterFieldName ("y");
-    pass2.setFilterLimits (-100000, nose.y + 0.04);
+    pass2.setFilterLimits (-100000, nose.y + crop_from_nose_mm_y/size_multiplier);
     pcl::PCLPointCloud2::Ptr cloud_filtered_ptr2 (new pcl::PCLPointCloud2);
     pass2.setKeepOrganized(true);
     pass2.setUserFilterValue(magic);
@@ -906,8 +944,6 @@ struct KinFuApp
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_after (new pcl::PointCloud<pcl::PointXYZRGB> ());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_after2 (new pcl::PointCloud<pcl::PointXYZRGB> ());
     fromPCLPointCloud2(mesh_cleaned.cloud, *translated_before);
-    // Eigen::Affine3f transform = Eigen::Scaling(2000.0, 2000.0, 2000.0);
-    // transform.translation() << -nose.x, -nose.y, -nose.z;
 
     Eigen::Affine3f transform_translate = Eigen::Affine3f::Identity();
     transform_translate.translation() << -nose.x, -nose.y, -nose.z;
@@ -915,9 +951,9 @@ struct KinFuApp
 
     // Scaling matrix
     Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
-    transform(0,0) = 2000.0;
-    transform(1,1) = 2000.0;
-    transform(2,2) = 2000.0;
+    transform(0,0) = size_multiplier;
+    transform(1,1) = size_multiplier;
+    transform(2,2) = size_multiplier;
     //    (row, column)
 
     pcl::transformPointCloud (*translated_after, *translated_after2, transform);
@@ -931,7 +967,7 @@ struct KinFuApp
     // pcl::io::loadPLYFile("mesh-cropped.ply", mesh);
     // pcl::io::savePLYFile("mesh-cropped2.ply", mesh);
 
-    res = system("meshlabserver -i mesh-cropped-uncleaned.ply -o mesh-cropped.ply -s ..\\..\\pcl\\clean-small.mlx -om vc vn");
+    res = system("meshlabserver -i mesh-cropped-uncleaned.ply -o mesh-cropped.ply -s kinfu\\clean-small.mlx -om vc vn");
     assert(res == 0);
   }
 
@@ -1408,6 +1444,14 @@ struct KinFuApp
   bool integrate_colors_;  
   bool pcd_source_ = false;
   float focal_length_;
+
+  float camera_fx = 882.f;
+  float camera_fy = 885.f;
+  float principal_cx = 339.f;
+  float principal_cy = 264.f;
+  float size_multiplier = 2000;
+  float crop_from_nose_mm_y = 0.04f;
+  float crop_from_nose_mm_z = 0.04f;
   
   pcl::Grabber& capture_;
   KinfuTracker kinfu_;
@@ -1691,6 +1735,7 @@ main (int argc, char* argv[])
   }
 
   KinFuApp app (*capture, volume_size, icp, visualization, pose_processor, start_at_side);
+  app.parseConfig("config.txt");
 
   if (pc::parse_argument (argc, argv, "-eval", eval_folder) > 0)
     app.toggleEvaluationMode(eval_folder, match_file);
