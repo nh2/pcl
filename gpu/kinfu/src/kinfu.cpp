@@ -197,6 +197,7 @@ pcl::gpu::KinfuTracker::allocateBufffers (int rows, int cols)
 
   vmaps_g_prev_.resize (LEVELS);
   nmaps_g_prev_.resize (LEVELS);
+  color_map_g_prev_.create(rows * 3, cols);
 
   vmaps_curr_.resize (LEVELS);
   nmaps_curr_.resize (LEVELS);
@@ -273,7 +274,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
         device::integrateTsdfVolume(depth_raw, intr, device_volume_size, device_Rcam_inv, device_tcam, tsdf_volume_->getTsdfTruncDist(), tsdf_volume_->data(), depthRawScaled_);
 
         for (int i = 0; i < LEVELS; ++i)
-          device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], device_Rcam, device_tcam, vmaps_g_prev_[i], nmaps_g_prev_[i]);
+          device::tranformMaps (vmaps_curr_[i], nmaps_curr_[i], device_Rcam, device_tcam, vmaps_g_prev_[i], nmaps_g_prev_[i]); // TODO check if color_map_g_prev_ needs to be updated here
 
         ++global_time_;
         return (false);
@@ -417,7 +418,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth_raw,
   Mat33& device_Rcurr = device_cast<Mat33> (Rcurr);
   {
     //ScopeTime time("ray-cast-all");
-    raycast (intr, device_Rcurr, device_tcurr, tsdf_volume_->getTsdfTruncDist(), device_volume_size, tsdf_volume_->data(), vmaps_g_prev_[0], nmaps_g_prev_[0]);
+    raycast (intr, device_Rcurr, device_tcurr, tsdf_volume_->getTsdfTruncDist(), device_volume_size, tsdf_volume_->data(), color_volume_->data(), vmaps_g_prev_[0], nmaps_g_prev_[0], color_map_g_prev_);
     for (int i = 1; i < LEVELS; ++i)
     {
       resizeVMap (vmaps_g_prev_[i-1], vmaps_g_prev_[i]);
@@ -494,7 +495,7 @@ pcl::gpu::KinfuTracker::getImage (View& view) const
   light.pos[0] = device_cast<const float3>(light_source_pose);
 
   view.create (rows_, cols_);
-  generateImage (vmaps_g_prev_[0], nmaps_g_prev_[0], light, view);
+  generateImage (vmaps_g_prev_[0], nmaps_g_prev_[0], color_map_g_prev_, light, view);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

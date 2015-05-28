@@ -283,12 +283,14 @@ namespace pcl
       * \param[in] tranc_dist volume truncation distance
       * \param[in] volume_size volume size in mm
       * \param[in] volume tsdf volume
+      * \param[in] color_volume color volume
       * \param[out] vmap output vertex map
       * \param[out] nmap output normals map
+      * \param[out] nmap output color map
       */
     void 
     raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, float tranc_dist, const float3& volume_size, 
-             const PtrStep<short2>& volume, MapArr& vmap, MapArr& nmap);
+			 const PtrStep<short2>& volume, const PtrStep<uchar4>& color_volume, MapArr& vmap, MapArr& nmap, DeviceArray2D<unsigned char>& color_map);
 
     /** \brief Renders 3D image of the scene
       * \param[in] vmap vetex map
@@ -296,8 +298,9 @@ namespace pcl
       * \param[in] light poase of light source
       * \param[out] dst buffer where image is generated
       */
-    void 
-    generateImage (const MapArr& vmap, const MapArr& nmap, const LightSource& light, PtrStepSz<uchar3> dst);
+	void
+	generateImage (const MapArr& vmap, const MapArr& nmap, DeviceArray2D<unsigned char>& color_map, const LightSource& light,
+				   PtrStepSz<uchar3> dst);
 
 
     /** \brief Renders depth image from give pose

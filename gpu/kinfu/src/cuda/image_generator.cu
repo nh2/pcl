@@ -52,6 +52,7 @@ namespace pcl
 
       PtrStep<float> vmap;
       PtrStep<float> nmap;
+      PtrStep<unsigned char> color_map;
 
       LightSource light;
 
@@ -80,7 +81,7 @@ namespace pcl
           n.y = nmap.ptr (y + dst.rows)[x];
           n.z = nmap.ptr (y + 2 * dst.rows)[x];
 
-          float weight = 1.f;
+          /*float weight = 1.f;
 
           for (int i = 0; i < light.number; ++i)
           {
@@ -90,8 +91,14 @@ namespace pcl
           }
 
           int br = (int)(205 * weight) + 50;
-          br = max (0, min (255, br));
-          color = make_uchar3 (br, br, br);
+          br = max (0, min (255, br));*/
+          // color = make_uchar3 (br, br, br);
+
+		  unsigned char r = color_map.ptr(y)[x];
+		  unsigned char g = color_map.ptr(y + dst.rows)[x];
+		  unsigned char b = color_map.ptr(y + 2 * dst.rows)[x];
+
+		  color = make_uchar3 (r, g, b);
         }
         dst.ptr (y)[x] = color;
       }
@@ -106,12 +113,13 @@ namespace pcl
 
 
 void
-pcl::device::generateImage (const MapArr& vmap, const MapArr& nmap, const LightSource& light, 
+pcl::device::generateImage(const MapArr& vmap, const MapArr& nmap, DeviceArray2D<unsigned char>& color_map,  const LightSource& light,
                             PtrStepSz<uchar3> dst)
 {
   ImageGenerator ig;
   ig.vmap = vmap;
   ig.nmap = nmap;
+  ig.color_map = color_map;
   ig.light = light;
   ig.dst = dst;
 

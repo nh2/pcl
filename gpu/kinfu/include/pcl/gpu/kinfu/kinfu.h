@@ -265,6 +265,8 @@ namespace pcl
         std::vector<MapArr> vmaps_g_prev_;
         /** \brief Normal maps pyramid for previous frame in global coordinate space. */
         std::vector<MapArr> nmaps_g_prev_;
+		/** \brief Color map for previous frame in global coordinate space. */
+		mutable DeviceArray2D<unsigned char> color_map_g_prev_;
                 
         /** \brief Vertex maps pyramid for current frame in current coordinate space. */
         std::vector<MapArr> vmaps_curr_;

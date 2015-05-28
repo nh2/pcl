@@ -395,7 +395,7 @@ struct ImageView
   {
     if (pose_ptr)
     {
-        raycaster_ptr_->run(kinfu.volume(), *pose_ptr);
+        raycaster_ptr_->run(kinfu.volume(), kinfu.colorVolume(), *pose_ptr);
         raycaster_ptr_->generateSceneView(view_device_);
     }
     else
@@ -435,7 +435,7 @@ struct ImageView
   void
   showGeneratedDepth (KinfuTracker& kinfu, const Eigen::Affine3f& pose)
   {            
-    raycaster_ptr_->run(kinfu.volume(), pose);
+    raycaster_ptr_->run(kinfu.volume(), kinfu.colorVolume(), pose);
     raycaster_ptr_->generateDepthImage(generated_depth_);    
 
     int c;

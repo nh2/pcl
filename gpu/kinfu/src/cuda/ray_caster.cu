@@ -74,11 +74,13 @@ namespace pcl
       int cols, rows;
 
       PtrStep<short2> volume;
+	  PtrStep<uchar4> color_volume;
 
       Intr intr;
 
       mutable PtrStep<float> nmap;
       mutable PtrStep<float> vmap;
+      mutable PtrStep<unsigned char> color_map;
 
       __device__ __forceinline__ float3
       get_ray_next (int x, int y) const
@@ -165,6 +167,7 @@ namespace pcl
 
         vmap.ptr (y)[x] = numeric_limits<float>::quiet_NaN ();
         nmap.ptr (y)[x] = numeric_limits<float>::quiet_NaN ();
+		color_map.ptr(y)[x] =  0;
 
         float3 ray_start = tcurr;
         float3 ray_next = Rcurr * get_ray_next (x, y) + tcurr;
@@ -205,6 +208,7 @@ namespace pcl
             break;
 
           tsdf = readTsdf (g.x, g.y, g.z);
+		  uchar4 color = color_volume.ptr(VOLUME_Y * g.z + g.y)[g.x];
 
           if (tsdf_prev < 0.f && tsdf > 0.f)
             break;
@@ -227,6 +231,11 @@ namespace pcl
             vmap.ptr (y       )[x] = vetex_found.x;
             vmap.ptr (y + rows)[x] = vetex_found.y;
             vmap.ptr (y + 2 * rows)[x] = vetex_found.z;
+
+			
+			color_map.ptr(y)[x] = color.x; // TODO check
+			color_map.ptr(y + rows)[x] = color.y;
+			color_map.ptr(y + 2 * rows)[x] = color.z;
 
             int3 g = getVoxel ( ray_start + ray_dir * time_curr );
             if (g.x > 1 && g.y > 1 && g.z > 1 && g.x < VOLUME_X - 2 && g.y < VOLUME_Y - 2 && g.z < VOLUME_Z - 2)
@@ -289,7 +298,7 @@ namespace pcl
 void
 pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr, 
                       float tranc_dist, const float3& volume_size,
-                      const PtrStep<short2>& volume, MapArr& vmap, MapArr& nmap)
+					  const PtrStep<short2>& volume, const PtrStep<uchar4>& color_volume, MapArr& vmap, MapArr& nmap, DeviceArray2D<unsigned char>& color_map)
 {
   RayCaster rc;
 
@@ -310,8 +319,10 @@ pcl::device::raycast (const Intr& intr, const Mat33& Rcurr, const float3& tcurr,
   rc.intr = intr;
 
   rc.volume = volume;
+  rc.color_volume = color_volume;
   rc.vmap = vmap;
   rc.nmap = nmap;
+  rc.color_map = color_map;
 
   dim3 block (RayCaster::CTA_SIZE_X, RayCaster::CTA_SIZE_Y);
   dim3 grid (divUp (rc.cols, block.x), divUp (rc.rows, block.y));

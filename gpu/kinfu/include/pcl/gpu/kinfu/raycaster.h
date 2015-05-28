@@ -52,6 +52,7 @@ namespace pcl
   namespace gpu
   {
     class TsdfVolume;
+	class ColorVolume;
 
     /** \brief Class that performs raycasting for TSDF volume
       * \author Anatoly Baskeheev, Itseez Ltd, (myname.mysurname@mycompany.com)
@@ -87,7 +88,7 @@ namespace pcl
         * \param[in] camera_pose camera pose
         */ 
       void 
-      run(const TsdfVolume& volume, const Eigen::Affine3f& camera_pose);
+      run(const TsdfVolume& volume, const ColorVolume& color_volume, const Eigen::Affine3f& camera_pose);
 
       /** \brief Generates scene view using data raycasted by run method. So call it before.
         * \param[out] view output array for RGB image        
@@ -115,6 +116,10 @@ namespace pcl
       /** \brief Returns raycasterd normal map. */ 
       MapArr
       getNormalMap() const;
+	  
+	  /** \brief Returns raycasterd color map. */
+	  DeviceArray2D<unsigned char>
+		  getColorMap() const;
 
     private:
       /** \brief Camera intrinsics. */ 
@@ -134,6 +139,9 @@ namespace pcl
       
       /** \brief normal map of 3D points*/
       MapArr normal_map_;
+	
+	  /** \brief color map */
+	  mutable DeviceArray2D<unsigned char> color_map_;
 
       /** \brief camera pose from which raycasting was done */
       Eigen::Affine3f camera_pose_;
