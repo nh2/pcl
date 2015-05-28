@@ -102,7 +102,6 @@ pcl::TCPGrabber::stop ()
 	std::cout.flush();
 	if (running_) {
 		running_ = false;
-		//socket_.shutdown(boost::asio::socket_base::shutdown_both);
 		std::cout << "TCPGrabber: Waiting for worker thread" << std::endl;
 		std::cout.flush(); 
 		// grabber_thread_.join();
@@ -181,6 +180,7 @@ accept_loop:
 
       if (error_code || !running_)
       {
+		  socket.close();
 		image_signal_->operator() (false, *rgb_buf_ptr, *depth_buf_ptr);
         goto accept_loop;
         // PCL_THROW_EXCEPTION (pcl::IOException, "TCPGrabber: Could not read from socket");
