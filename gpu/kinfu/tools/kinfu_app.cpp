@@ -1011,6 +1011,13 @@ struct KinFuApp
   }
 
   void
+  processEtronStreamAndQuit()
+  {
+	  processEtronStream();
+	  exit(0);
+  }
+
+  void
   toggleEvaluationMode(const string& eval_folder, const string& match_file = string())
   {
     evaluation_ptr_ = Evaluation::Ptr( new Evaluation(eval_folder) );
@@ -1142,10 +1149,8 @@ struct KinFuApp
   {
     if (!continue_)
 	{
-		std::cout << "QUIT!" << std::endl;
-		processEtronStream();
-		// TODO: Shut down properly, including stopping the (TCP)Grabber so that the socket is free again (avoid TCP_REUSEADDR problems).
-		exit(0);
+			processEtronStream();
+			exit(0);
     }
 
     {
@@ -1551,8 +1556,8 @@ struct KinFuApp
       case (int)'b': case (int)'B': app->scene_cloud_view_.toggleCube(app->kinfu_.volume().getSize()); break;
       case (int)'7': case (int)'8': app->writeMesh (key - (int)'0'); break;
       case (int)'1': case (int)'2': case (int)'3': app->writeCloud (key - (int)'0'); break;      
-      case (int)'F': app->processEtronStream(); break;
       case '*': app->image_view_.toggleImagePaint (); break;
+	  case (int)' ': app->capture_.stop(); break;
 
       case (int)'x': case (int)'X':
         app->scan_volume_ = !app->scan_volume_;

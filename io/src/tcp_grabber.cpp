@@ -98,10 +98,19 @@ pcl::TCPGrabber::start ()
 void
 pcl::TCPGrabber::stop ()
 {
-  running_ = false;
-  grabber_thread_.join ();
+	std::cout << "TCPGrabber: About to stop" << std::endl;
+	std::cout.flush();
+	if (running_) {
+		running_ = false;
+		//socket_.shutdown(boost::asio::socket_base::shutdown_both);
+		std::cout << "TCPGrabber: Waiting for worker thread" << std::endl;
+		std::cout.flush(); 
+		// grabber_thread_.join();
+		std::cout << "TCPGrabber: bye!" << std::endl;
 
-  close ();
+		close();
+
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -152,7 +161,7 @@ pcl::TCPGrabber::processGrabbing ()
 
   // socket accept loop
 accept_loop:
-  for (;;)
+  while (running_)
   {
     tcp::socket socket(io_service);
     std::cout << "TCPGrabber: Waiting for client" << std::endl;
@@ -160,7 +169,7 @@ accept_loop:
     std::cout << "TCPGrabber: Accepted client" << std::endl;
 
     bool continue_grabbing = true;
-    while (continue_grabbing)
+    while (continue_grabbing && running_)
     {
       // Acquire frame
 
@@ -170,7 +179,7 @@ accept_loop:
 
       // std::cout << "TCPGrabber: got frame" << std::endl;
 
-      if (error_code)
+      if (error_code || !running_)
       {
 		image_signal_->operator() (false, *rgb_buf_ptr, *depth_buf_ptr);
         goto accept_loop;
