@@ -81,7 +81,7 @@ namespace pcl
           n.y = nmap.ptr (y + dst.rows)[x];
           n.z = nmap.ptr (y + 2 * dst.rows)[x];
 
-          /*float weight = 1.f;
+          float weight = 1.f;
 
           for (int i = 0; i < light.number; ++i)
           {
@@ -90,13 +90,11 @@ namespace pcl
             weight *= fabs (dot (vec, n));
           }
 
-          int br = (int)(205 * weight) + 50;
-          br = max (0, min (255, br));*/
           // color = make_uchar3 (br, br, br);
 
-		  unsigned char r = color_map.ptr(y)[x];
-		  unsigned char g = color_map.ptr(y + dst.rows)[x];
-		  unsigned char b = color_map.ptr(y + 2 * dst.rows)[x];
+		  unsigned char r = (unsigned char) (color_map.ptr(y)[x] * weight);
+		  unsigned char g = (unsigned char) (color_map.ptr(y + dst.rows)[x] * weight);
+		  unsigned char b = (unsigned char) (color_map.ptr(y + 2 * dst.rows)[x] * weight);
 
 		  color = make_uchar3 (r, g, b);
         }
