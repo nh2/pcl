@@ -546,7 +546,8 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
     Mat33&  device_Rcurr_inv = device_cast<Mat33> (R_inv);
     float3& device_tcurr = device_cast<float3> (t);
     
-    device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], 
+    device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], nmaps_g_prev_[0],
+        // colors, device_volume_size, color_volume_->data(), 0 /* color_volume_->getMaxWeight() */);
         colors, device_volume_size, color_volume_->data(), color_volume_->getMaxWeight());
   }
 

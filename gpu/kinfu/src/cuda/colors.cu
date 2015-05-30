@@ -92,6 +92,7 @@ namespace pcl
       Intr intr;
 
       PtrStep<float> vmap;
+      PtrStep<float> nmap;
       PtrStepSz<uchar3> colors;
 
       Mat33 R_inv;
@@ -187,6 +188,15 @@ namespace pcl
               update = dist < tranc_dist;
             }
 
+            float3 n;
+            n.x = nmap.ptr (coo.y)[coo.x];
+            n.y = nmap.ptr (coo.y + colors.rows    )[coo.x];
+            n.z = nmap.ptr (coo.y + colors.rows * 2)[coo.x];
+
+            // update &= dot(normalized(t - v_g), n) > 0.70710678118654752; // cos(45 degrees)
+            update &= dot(normalized(t - v_g), n) > 0.5; // cos(60 degrees)
+            // update &= dot(normalized(t - v_g), n) > 0.9;
+
             if (update)
             {
               uchar4 *ptr = color_volume.ptr (VOLUME_Y * z + y) + x;
@@ -224,10 +234,11 @@ namespace pcl
 
 void
 pcl::device::updateColorVolume (const Intr& intr, float tranc_dist, const Mat33& R_inv, const float3& t,
-                                const MapArr& vmap, const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, int max_weight)
+                                const MapArr& vmap, const MapArr& nmap, const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, int max_weight)
 {
   ColorVolumeImpl cvi;
   cvi.vmap = vmap;
+  cvi.nmap = nmap;
   cvi.colors = colors;
   cvi.color_volume = color_volume;
 
