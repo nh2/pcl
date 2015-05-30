@@ -130,6 +130,18 @@ namespace pcl
       __device__ __forceinline__ void
       operator () () const
       {
+        /* For each voxel (x,y,z) in the voxel volume (actually, its center vertex `v_g`),
+           project it onto the corresponding pixel `coo` in the camera screen.
+           From that pixel, look up the 3D position vertex `p` (from the global
+           cam-pixel-to-vertex map `vmap`), and compute the voxel `vp = (x',y',z')`
+           into which that vertex falls.
+           If the (x,y,z) voxel is within TSDF distance to `vp` (== actual position
+           of the surface) then colour this voxel (x,y,z) with the colour of `coo`.
+
+           If ONE_VOXEL is true, then the TSDF distance is ignored, and instead
+           the voxel (x,y,z) is coloured if `vp` is exactly the same voxel.
+        */
+
         int x = threadIdx.x + blockIdx.x * blockDim.x;
         int y = threadIdx.y + blockIdx.y * blockDim.y;
 
@@ -140,17 +152,20 @@ namespace pcl
         {
           float3 v_g = getVoxelGCoo (x, y, z);
 
+          // Position of the voxel in the camera 3D space
           float3 v = R_inv * (v_g - t);
 
           if (v.z <= 0)
             continue;
 
-          int2 coo;                   //project to current cam
+          int2 coo;                   //project to current cam; this is the pixel in the camera that the voxel (x,y,z) falls onto
           coo.x = __float2int_rn (v.x * intr.fx / v.z + intr.cx);
           coo.y = __float2int_rn (v.y * intr.fy / v.z + intr.cy);
 
+          // If the pixel belonging to the voxel is on the camera screen
           if (coo.x >= 0 && coo.y >= 0 && coo.x < colors.cols && coo.y < colors.rows)
           {
+            // Look up global coordinate of the voxel from the pixel
             float3 p;
             p.x = vmap.ptr (coo.y)[coo.x];
 
@@ -163,7 +178,7 @@ namespace pcl
             bool update = false;
             if (ONE_VOXEL)
             {
-              int3 vp = getVoxel (p);
+              int3 vp = getVoxel (p);  // look up voxel (x',y',z') from p
               update = vp.x == x && vp.y == y && vp.z == z;
             }
             else
