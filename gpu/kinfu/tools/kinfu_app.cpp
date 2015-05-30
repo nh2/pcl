@@ -40,6 +40,7 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <string>
 
 #include <pcl/console/parse.h>
 
@@ -84,6 +85,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <ctime>
 
 #ifdef HAVE_OPENCV  
   #include <opencv2/highgui/highgui.hpp>
@@ -846,6 +848,27 @@ struct KinFuApp
     independent_camera_ = !independent_camera_;
     cout << "Camera mode: " << (independent_camera_ ?  "Independent" : "Bound to Kinect pose") << endl;
   }
+  
+  std::string getDate()
+  {
+	  time_t rawtime;
+	  struct tm *timeinfo;
+	  char buffer[80];
+
+	  time(&rawtime);
+	  timeinfo = localtime(&rawtime);
+
+	  strftime(buffer, 80, "%Y%m%d%H%M%S", timeinfo);
+	  std::string str(buffer);
+
+	  return str;
+  }
+
+  void copyFile(std::string srcFn, std::string dstFn) {
+	  std::ifstream src(srcFn, std::ios::binary);
+	  std::ofstream dst(dstFn, std::ios::binary);
+	  dst << src.rdbuf();
+  }
 
   PointXYZ
   findNose(pcl::PCLPointCloud2 meshcloud)
@@ -898,15 +921,21 @@ struct KinFuApp
   void
   cropFace()
   {
+	// TODO check if mesh is empty, and do nothing if it is.
+
+
+	std::string date = getDate();
+	copyFile("mesh.ply", "mesh-" + date + ".ply");
+
     int res = 0;
-    res = system("meshlabserver -i mesh.ply -o mesh-clean.ply -s kinfu\\clean.mlx -om vc vn");
+	res = system(("meshlabserver -i mesh-" + date + ".ply -o mesh-" + date + "-clean.ply -s kinfu\\clean.mlx -om vc vn").c_str());
 	assert(res == 0);
-    res = system("python ply2asc\\ply2asc.py mesh-clean.ply mesh-rotated.asc.ply");
+    res = system(("python ply2asc\\ply2asc.py mesh-" + date + "-clean.ply mesh-" + date + "-rotated.asc.ply").c_str());
 	assert(res == 0);
 
     cout << "Cropping face" << endl;
     pcl::PolygonMesh mesh;
-    pcl::io::loadPLYFile("mesh-rotated.asc.ply", mesh);
+    pcl::io::loadPLYFile("mesh-" + date + "-rotated.asc.ply", mesh);
 
     pcl::PCLPointCloud2 meshCloud = mesh.cloud;
 
@@ -992,14 +1021,12 @@ struct KinFuApp
     pcl::PCLPointCloud2 to_be_cut;
     toPCLPointCloud2(*translated_after2, mesh_cleaned.cloud);
 
-    cout << "Saving mesh to to 'mesh-cropped-uncleaned.ply'... " << flush;
-    pcl::io::savePLYFile("mesh-cropped-uncleaned.ply", mesh_cleaned);
-    cout << "done" << endl;
-    // pcl::io::loadPLYFile("mesh-cropped.ply", mesh);
-    // pcl::io::savePLYFile("mesh-cropped2.ply", mesh);
+    pcl::io::savePLYFile("mesh-" + date + "-cropped-uncleaned.ply", mesh_cleaned);
 
-    res = system("meshlabserver -i mesh-cropped-uncleaned.ply -o mesh-cropped.ply -s kinfu\\clean-small.mlx -om vc vn");
+    res = system(("meshlabserver -i mesh-" + date + "-cropped-uncleaned.ply -o mesh-" + date + "-cropped.ply -s kinfu\\clean-small.mlx -om vc vn").c_str());
     assert(res == 0);
+
+	copyFile("mesh-" + date + "-cropped.ply", "target.ply");
   }
 
   void
