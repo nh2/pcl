@@ -870,16 +870,13 @@ struct KinFuApp
 	  dst << src.rdbuf();
   }
 
-  PointXYZ
-  findNose(pcl::PCLPointCloud2 meshcloud)
+  PointXYZRGB findNose(pcl::PointCloud<PointXYZRGB> meshcloud_sane)
   {
-    pcl::PointCloud<PointXYZ> meshcloud_sane;
-    fromPCLPointCloud2(meshcloud, meshcloud_sane);
 
 	float top_y = -1000000000000000000, bot_y = 1000000000000000000, left_x = 1000000000000000000, right_x = -1000000000000000000;
 
 	for (int i = 0; i < meshcloud_sane.size(); ++i) {
-		PointXYZ pt = meshcloud_sane[i];
+		PointXYZRGB pt = meshcloud_sane[i];
 		top_y = max(top_y, pt.y);
 		bot_y = min(bot_y, pt.y);
 		left_x = min(left_x, pt.x);
@@ -888,22 +885,22 @@ struct KinFuApp
 
 	float closest_z = -1000000000000000000;
 	for (int i = 0; i < meshcloud_sane.size(); ++i) {
-		PointXYZ pt = meshcloud_sane[i];
+		PointXYZRGB pt = meshcloud_sane[i];
 		if (pt.z > closest_z) {
 			closest_z = pt.z;
 		}
 	}
 
-	PointXYZ middle;
+	PointXYZRGB middle;
 	middle.x = (left_x + right_x) / 2;
-	middle.y = nose_y_displacement/size_multiplier + (top_y + bot_y) / 2;
+	middle.y = nose_y_displacement + (top_y + bot_y) / 2;
 	middle.z = closest_z;
 
-	PointXYZ nose = middle;
+	PointXYZRGB nose = middle;
 	float closest_z_in_circle = -1000000000000000000;
-	float squared_radius = (radius_from_middle / size_multiplier)*(radius_from_middle / size_multiplier);
+	float squared_radius = radius_from_middle*radius_from_middle;
 	for (int i = 0; i < meshcloud_sane.size(); ++i) {
-		PointXYZ pt = meshcloud_sane[i];
+		PointXYZRGB pt = meshcloud_sane[i];
 		if (pt.z > closest_z_in_circle) {
 			float diff_x = middle.x - pt.x;
 			float diff_y = middle.y - pt.y;
@@ -918,66 +915,55 @@ struct KinFuApp
 	return nose;
   }
 
-  void
-  cropFace()
+  pcl::PointCloud<PointXYZRGB> cropFaceFromNose(PointCloud<PointXYZRGB> meshcloud_sane, PointXYZRGB nose)
   {
-	// TODO check if mesh is empty, and do nothing if it is.
-
-
-	std::string date = getDate();
-	copyFile("mesh.ply", "mesh-" + date + ".ply");
-
-    int res = 0;
-	res = system(("meshlabserver -i mesh-" + date + ".ply -o mesh-" + date + "-clean.ply -s kinfu\\clean.mlx -om vc vn").c_str());
-	assert(res == 0);
-    res = system(("python ply2asc\\ply2asc.py mesh-" + date + "-clean.ply mesh-" + date + "-rotated.asc.ply").c_str());
-	assert(res == 0);
-
-    cout << "Cropping face" << endl;
-    pcl::PolygonMesh mesh;
-    pcl::io::loadPLYFile("mesh-" + date + "-rotated.asc.ply", mesh);
-
-    pcl::PCLPointCloud2 meshCloud = mesh.cloud;
-
-    // Find nose
-    PointXYZ nose = findNose(mesh.cloud);
-
     // Cut back of head
-    pcl::PCLPointCloud2::ConstPtr meshCloudPtr = boost::make_shared<pcl::PCLPointCloud2>(meshCloud);
-    pcl::PassThrough<PCLPointCloud2> pass;
+    pcl::PointCloud<PointXYZRGB>::ConstPtr meshCloudPtr = boost::make_shared<pcl::PointCloud<PointXYZRGB> >(meshcloud_sane);
+    pcl::PassThrough<PointXYZRGB> pass;
     pass.setInputCloud(meshCloudPtr);
-    pass.setFilterFieldName ("z");
-    pass.setFilterLimits (nose.z - crop_from_nose_mm_z/size_multiplier, 1000000); // TODO scale with distance
-    pcl::PCLPointCloud2::Ptr cloud_filtered_ptr (new pcl::PCLPointCloud2);
+    pass.setFilterFieldName("z");
+    pass.setFilterLimits(nose.z - crop_from_nose_mm_z, 1000000); // TODO scale with distance
+    pcl::PointCloud<PointXYZRGB>::Ptr cloud_filtered_ptr(new pcl::PointCloud<PointXYZRGB>);
     pass.setKeepOrganized(true);
     pass.setUserFilterValue(0.0);
     pass.filter(*cloud_filtered_ptr);
-    pcl::PCLPointCloud2 cloud_filtered = *cloud_filtered_ptr;
+    pcl::PointCloud<PointXYZRGB> cloud_filtered = *cloud_filtered_ptr;
 
     // float magic = 9999999.9;
     float magic = 0.0;
 
     // Cut top of head
-    pcl::PCLPointCloud2::ConstPtr meshCloudPtr2 = boost::make_shared<pcl::PCLPointCloud2>(cloud_filtered);
-    pcl::PassThrough<PCLPointCloud2> pass2;
+    pcl::PointCloud<PointXYZRGB>::ConstPtr meshCloudPtr2 = boost::make_shared<pcl::PointCloud<PointXYZRGB> >(cloud_filtered);
+    pcl::PassThrough<PointXYZRGB> pass2;
     pass2.setInputCloud(meshCloudPtr2);
-    pass2.setFilterFieldName ("y");
-    pass2.setFilterLimits (-100000, nose.y + crop_from_nose_mm_y/size_multiplier);
-    pcl::PCLPointCloud2::Ptr cloud_filtered_ptr2 (new pcl::PCLPointCloud2);
+    pass2.setFilterFieldName("y");
+    pass2.setFilterLimits(-100000, nose.y + crop_from_nose_mm_y);
+    pcl::PointCloud<PointXYZRGB>::Ptr cloud_filtered_ptr2(new pcl::PointCloud<PointXYZRGB>);
     pass2.setKeepOrganized(true);
     pass2.setUserFilterValue(magic);
     pass2.filter(*cloud_filtered_ptr2);
 
-    mesh.cloud = *cloud_filtered_ptr2;
+    return *cloud_filtered_ptr2;
+  }
 
-    pcl::PointCloud<PointXYZ> meshcloud_sane;
-    fromPCLPointCloud2(mesh.cloud, meshcloud_sane);
+  void scaleMesh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr before, pcl::PointCloud<pcl::PointXYZRGB>::Ptr after)
+  {
+    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    transform(0, 0) = size_multiplier;
+    transform(1, 1) = size_multiplier;
+    transform(2, 2) = size_multiplier;
+    //    (row, column)
+    pcl::transformPointCloud(*before, *after, transform);
+  }
 
-    std::vector< pcl::Vertices > new_polygons;
+  std::vector<pcl::Vertices> cleanPolygons(pcl::PointCloud<PointXYZRGB> meshcloud_sane, std::vector<pcl::Vertices> polygons)
+  {
+    float magic = 0.0;
+    std::vector<pcl::Vertices> new_polygons;
 
-    for (int i = 0; i < mesh.polygons.size(); ++i)
+    for (int i = 0; i < polygons.size(); ++i)
     {
-      pcl::Vertices poly = mesh.polygons[i];
+      pcl::Vertices poly = polygons[i];
       bool acceptable = true;
       for (int k = 0; k < poly.vertices.size(); ++k)
       {
@@ -992,37 +978,87 @@ struct KinFuApp
       }
     }
 
-    mesh.polygons = new_polygons;
+    return new_polygons;
+  }
 
+  void translateMesh(PointXYZRGB nose, pcl::PointCloud<pcl::PointXYZRGB>::Ptr before, pcl::PointCloud<pcl::PointXYZRGB>::Ptr after)
+  {
+    Eigen::Affine3f transform_translate = Eigen::Affine3f::Identity();
+    transform_translate.translation() << -nose.x, -nose.y, -nose.z;
+    pcl::transformPointCloud(*before, *after, transform_translate);
+  }
+
+  void
+  prepareMesh()
+  {
+    // Check if mesh is empty
+    pcl::PointCloud<PointXYZRGB> meshcloud_sane;
+    fromPCLPointCloud2(scene_cloud_view_.mesh_ptr_->cloud, meshcloud_sane);
+    /*
+	if (meshcloud_sane.size() < 0) {
+      // File empty, do something
+	  return;
+	}
+    */
+
+    // Copy mesh to dated file
+	std::string date = getDate();
+	copyFile("mesh.ply", "mesh-" + date + ".ply");
+
+    std::cout << "Cleaning and rotating mesh with meshlabserver" << std::endl;
+    int res = 0;
+	res = system(("meshlabserver -i mesh-" + date + ".ply -o mesh-" + date + "-clean.ply -s kinfu\\clean.mlx -om vc vn").c_str());
+	assert(res == 0);
+
+    // Converting to ASCII
+    res = system(("python ply2asc\\ply2asc.py mesh-" + date + "-clean.ply mesh-" + date + "-rotated.asc.ply").c_str());
+	assert(res == 0);
+
+    // Load it back to PCL
+    pcl::PolygonMesh mesh;
+    pcl::io::loadPLYFile("mesh-" + date + "-rotated.asc.ply", mesh);
+    fromPCLPointCloud2(mesh.cloud, meshcloud_sane);
+
+    // Scale it
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr before_scaling(new pcl::PointCloud<pcl::PointXYZRGB>());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr after_scaling(new pcl::PointCloud<pcl::PointXYZRGB>());
+    *before_scaling = meshcloud_sane;
+    scaleMesh(before_scaling, after_scaling);
+    meshcloud_sane = *after_scaling;
+    cout << "Scaled size " << meshcloud_sane.size() << endl;
+
+    // Crop face from nose
+    cout << "Cropping face from nose" << endl;
+    PointXYZRGB nose = findNose(meshcloud_sane);
+    meshcloud_sane = cropFaceFromNose(meshcloud_sane, nose);
+    cout << "Cropped size " << meshcloud_sane.size() << endl;
+
+    // Clean polygons
+    cout << "Cleaning polygons" << endl;
+    std::vector<pcl::Vertices> new_polygons = cleanPolygons(meshcloud_sane, mesh.polygons);
+
+    // Remove unused vertices
+    cout << "Remove unused vertices" << endl;
+    toPCLPointCloud2(meshcloud_sane, mesh.cloud);
+    mesh.polygons = new_polygons;
     pcl::PolygonMesh mesh_cleaned;
     pcl::surface::SimplificationRemoveUnusedVertices simplifier;
     simplifier.simplify(mesh, mesh_cleaned);
-
+    fromPCLPointCloud2(mesh_cleaned.cloud, meshcloud_sane);
 
     // Translate
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_before (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_after (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr translated_after2 (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    fromPCLPointCloud2(mesh_cleaned.cloud, *translated_before);
+    cout << "Translate mesh" << endl;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr before_translating (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr after_translating (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    *before_translating = meshcloud_sane;
+    translateMesh(nose, before_translating, after_translating);
+    meshcloud_sane = *after_translating;
 
-    Eigen::Affine3f transform_translate = Eigen::Affine3f::Identity();
-    transform_translate.translation() << -nose.x, -nose.y, -nose.z;
-    pcl::transformPointCloud (*translated_before, *translated_after, transform_translate);
+    toPCLPointCloud2(meshcloud_sane, mesh_cleaned.cloud);
 
-    // Scaling matrix
-    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
-    transform(0,0) = size_multiplier;
-    transform(1,1) = size_multiplier;
-    transform(2,2) = size_multiplier;
-    //    (row, column)
-
-    pcl::transformPointCloud (*translated_after, *translated_after2, transform);
-
-    pcl::PCLPointCloud2 to_be_cut;
-    toPCLPointCloud2(*translated_after2, mesh_cleaned.cloud);
-
+    // Final pass with meshlabserver
+    cout << "Final meshlab pass" << endl;
     pcl::io::savePLYFile("mesh-" + date + "-cropped-uncleaned.ply", mesh_cleaned);
-
     res = system(("meshlabserver -i mesh-" + date + "-cropped-uncleaned.ply -o mesh-" + date + "-cropped.ply -s kinfu\\clean-small.mlx -om vc vn").c_str());
     assert(res == 0);
 
@@ -1034,7 +1070,7 @@ struct KinFuApp
   {
     scene_cloud_view_.showMesh(kinfu_, integrate_colors_);
     writeMesh ((int)'7' - (int)'0');
-    cropFace();
+    prepareMesh();
   }
 
   void
@@ -1577,7 +1613,7 @@ struct KinFuApp
       case (int)'m': case (int)'M': app->scene_cloud_view_.toggleExtractionMode (); break;
       case (int)'n': case (int)'N': app->scene_cloud_view_.toggleNormals (); break;      
       case (int)'c': case (int)'C': app->scene_cloud_view_.clearClouds (true); break;
-      case (int)'d': case (int)'D': app->cropFace(); break;
+      case (int)'d': case (int)'D': app->prepareMesh(); break;
       case (int)'r': case (int)'R': app->kinfu_.reset(); break;
       case (int)'i': case (int)'I': app->toggleIndependentCamera (); break;
       case (int)'b': case (int)'B': app->scene_cloud_view_.toggleCube(app->kinfu_.volume().getSize()); break;
