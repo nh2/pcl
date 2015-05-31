@@ -1004,19 +1004,21 @@ struct KinFuApp
     // Copy mesh to dated file
 	std::string date = getDate();
 	copyFile("mesh.ply", "mesh-" + date + ".ply");
-
+    
     std::cout << "Cleaning and rotating mesh with meshlabserver" << std::endl;
     int res = 0;
-	res = system(("meshlabserver -i mesh-" + date + ".ply -o mesh-" + date + "-clean.ply -s kinfu\\clean.mlx -om vc vn").c_str());
+	res = system("meshlabserver -i mesh.ply -o mesh-clean.ply -s kinfu\\clean.mlx -om vc vn");
 	assert(res == 0);
+    copyFile("mesh-clean.ply", "mesh-" + date + "-clean.ply");
 
     // Converting to ASCII
-    res = system(("python ply2asc\\ply2asc.py mesh-" + date + "-clean.ply mesh-" + date + "-rotated.asc.ply").c_str());
+    res = system("python ply2asc\\ply2asc.py mesh-clean.ply mesh-rotated.asc.ply");
 	assert(res == 0);
+    copyFile("mesh-rotated.asc.ply", "mesh-" + date + "-rotated.asc.ply");
 
     // Load it back to PCL
     pcl::PolygonMesh mesh;
-    pcl::io::loadPLYFile("mesh-" + date + "-rotated.asc.ply", mesh);
+    pcl::io::loadPLYFile("mesh-rotated.asc.ply", mesh);
     fromPCLPointCloud2(mesh.cloud, meshcloud_sane);
 
     // Scale it
@@ -1058,11 +1060,13 @@ struct KinFuApp
 
     // Final pass with meshlabserver
     cout << "Final meshlab pass" << endl;
-    pcl::io::savePLYFile("mesh-" + date + "-cropped-uncleaned.ply", mesh_cleaned);
-    res = system(("meshlabserver -i mesh-" + date + "-cropped-uncleaned.ply -o mesh-" + date + "-cropped.ply -s kinfu\\clean-small.mlx -om vc vn").c_str());
+    pcl::io::savePLYFile("mesh-cropped-uncleaned.ply", mesh_cleaned);
+    copyFile("mesh-cropped-uncleaned.ply", "mesh-" + date + "-cropped-uncleaned.ply");
+    res = system("meshlabserver -i mesh-cropped-uncleaned.ply -o mesh-cropped.ply -s kinfu\\clean-small.mlx -om vc vn");
     assert(res == 0);
+    copyFile("mesh-cropped.ply", "mesh-" + date + "-cropped.ply");
 
-	copyFile("mesh-" + date + "-cropped.ply", "target.ply");
+	copyFile("mesh-cropped.ply", "target.ply");
   }
 
   void
