@@ -36,6 +36,7 @@
  */
 
 #include "device.hpp"
+#define PI 3.14159265359f
 
 //#include "pcl/gpu/utils/device/vector_math.hpp"
 
@@ -102,6 +103,8 @@ namespace pcl
       float tranc_dist;
 
       int max_weight;
+
+      float accept_angle_deg;
 
       mutable PtrStep<uchar4> color_volume;
 
@@ -193,9 +196,7 @@ namespace pcl
             n.y = nmap.ptr (coo.y + colors.rows    )[coo.x];
             n.z = nmap.ptr (coo.y + colors.rows * 2)[coo.x];
 
-            // update &= dot(normalized(t - v_g), n) > 0.70710678118654752; // cos(45 degrees)
-            update &= dot(normalized(t - v_g), n) > 0.5; // cos(60 degrees)
-            // update &= dot(normalized(t - v_g), n) > 0.9;
+            update &= dot(normalized(t - v_g), n) > cos(accept_angle_deg * PI / 180.0);
 
             if (update)
             {
@@ -234,7 +235,7 @@ namespace pcl
 
 void
 pcl::device::updateColorVolume (const Intr& intr, float tranc_dist, const Mat33& R_inv, const float3& t,
-                                const MapArr& vmap, const MapArr& nmap, const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, int max_weight)
+                                const MapArr& vmap, const MapArr& nmap, const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, int max_weight, float accept_angle_deg)
 {
   ColorVolumeImpl cvi;
   cvi.vmap = vmap;
@@ -247,6 +248,7 @@ pcl::device::updateColorVolume (const Intr& intr, float tranc_dist, const Mat33&
   cvi.intr = intr;
   cvi.tranc_dist = tranc_dist;
   cvi.max_weight = min (max (0, max_weight), 255);
+  cvi.accept_angle_deg = accept_angle_deg;
 
   cvi.cell_size.x = volume_size.x / VOLUME_X;
   cvi.cell_size.y = volume_size.y / VOLUME_Y;

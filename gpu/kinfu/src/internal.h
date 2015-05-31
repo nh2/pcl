@@ -269,10 +269,11 @@ namespace pcl
       * \param[in] volume_size volume size in meters
       * \param[in] color_volume color volume to be integrated
       * \param[in] max_weight max weight for running color average. Zero means not average, one means average with prev value, etc.
+      * \param[in] accept_angle_deg Threshold for integrating colors, in degrees. If a surface normal and the vector between the surface and the camera deviate more than this angle, the color will not be integrated at the voxel belonging to this surface. This is useful to set to e.g. 45 degrees to prevent the color of the background to be merged into the sides of objects when depth and color images do not overlap perfectly. Smaller angles mean only surfaces that the camera looks at frontally are integrated; 90 degrees permits all angles (from the correct side).
       */    
     void 
     updateColorVolume(const Intr& intr, float tranc_dist, const Mat33& R_inv, const float3& t, const MapArr& vmap, const MapArr& nmap,
-            const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, int max_weight = 1);
+            const PtrStepSz<uchar3>& colors, const float3& volume_size, PtrStep<uchar4> color_volume, int max_weight = 1, float accept_angle_deg = 90.0);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Raycast and view generation        

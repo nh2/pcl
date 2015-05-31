@@ -71,7 +71,7 @@ namespace pcl
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(cols), global_time_(0), max_icp_distance_(0), integration_metric_threshold_(0.f), disable_icp_(false)
+pcl::gpu::KinfuTracker::KinfuTracker (int rows, int cols) : rows_(rows), cols_(cols), global_time_(0), max_icp_distance_(0), integration_metric_threshold_(0.f), accept_angle_deg_(90.0), disable_icp_(false)
 {
   const Vector3f volume_size = Vector3f::Constant (VOLUME_SIZE);
   const Vector3i volume_resolution(VOLUME_X, VOLUME_Y, VOLUME_Z);
@@ -499,6 +499,13 @@ pcl::gpu::KinfuTracker::getImage (View& view) const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+float&
+pcl::gpu::KinfuTracker::acceptAngle ()
+{
+  return accept_angle_deg_;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void
 pcl::gpu::KinfuTracker::getLastFrameCloud (DeviceArray2D<PointType>& cloud) const
 {
@@ -547,8 +554,7 @@ pcl::gpu::KinfuTracker::operator() (const DepthMap& depth, const View& colors)
     float3& device_tcurr = device_cast<float3> (t);
     
     device::updateColorVolume(intr, tsdf_volume_->getTsdfTruncDist(), device_Rcurr_inv, device_tcurr, vmaps_g_prev_[0], nmaps_g_prev_[0],
-        // colors, device_volume_size, color_volume_->data(), 0 /* color_volume_->getMaxWeight() */);
-        colors, device_volume_size, color_volume_->data(), color_volume_->getMaxWeight());
+        colors, device_volume_size, color_volume_->data(), color_volume_->getMaxWeight(), accept_angle_deg_);
   }
 
   return res;

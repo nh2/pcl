@@ -785,6 +785,8 @@ struct KinFuApp
 			  radius_from_middle = val;
 		  else if (!strcmp(tag, "nose_y_displacement"))
 			  nose_y_displacement = val;
+          else if (!strcmp(tag, "accept_angle_deg"))
+              accept_angle_deg = val;
 		  else
 			  std::cerr << "WARNING: invalid configuration entry " << tag << std::endl;
 	  }
@@ -1572,6 +1574,7 @@ struct KinFuApp
   float crop_from_nose_mm_z = 80.f;
   float radius_from_middle = 25.f;
   float nose_y_displacement = -15.f;
+  float accept_angle_deg = 90.f;
   
   pcl::Grabber& capture_;
   KinfuTracker kinfu_;
@@ -1856,6 +1859,8 @@ main (int argc, char* argv[])
 
   KinFuApp app (*capture, volume_size, icp, visualization, pose_processor, start_at_side);
   app.parseConfig("config.txt");
+
+  app.kinfu_.acceptAngle() = app.accept_angle_deg;
 
   if (pc::parse_argument (argc, argv, "-eval", eval_folder) > 0)
     app.toggleEvaluationMode(eval_folder, match_file);

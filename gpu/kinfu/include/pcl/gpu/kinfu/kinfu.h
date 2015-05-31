@@ -184,6 +184,8 @@ namespace pcl
         /** \brief Returns color volume storage */
         ColorVolume& colorVolume();
         
+        float& acceptAngle ();
+
         /** \brief Renders 3D scene to display to human
           * \param[out] view output array with image
           */
@@ -254,6 +256,15 @@ namespace pcl
         /** \brief angle threshold in correspondences filtering. Represents max sine of angle between normals. */
         float angleThres_;
         
+        /** \brief Threshold for integrating colors, in degrees.
+                   If a surface normal and the vector between the surface and the camera deviate more than this angle,
+                   the color will not be integrated at the voxel belonging to this surface.
+                   This is useful to set to e.g. 45 degrees to prevent the color of the background to be merged into
+                   the sides of objects when depth and color images do not overlap perfectly.
+                   Smaller angles mean only surfaces that the camera looks at frontally are integrated;
+                   90 degrees permits all angles (from the correct side). */
+        float accept_angle_deg_;
+
         /** \brief Depth pyramid. */
         std::vector<DepthMap> depths_curr_;
         /** \brief Vertex maps pyramid for current frame in global coordinate space. */
