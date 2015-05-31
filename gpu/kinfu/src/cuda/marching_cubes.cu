@@ -42,6 +42,7 @@
 
 #include "thrust/device_ptr.h"
 #include "thrust/scan.h"
+#include <algorithm>
 
 namespace pcl
 {
@@ -330,11 +331,12 @@ namespace pcl
         float x = c0.x + t * ( (float) c1.x - (float) c0.x );
         float y = c0.y + t * ( (float) c1.y - (float) c0.y );
         float z = c0.z + t * ( (float) c1.z - (float) c0.z );
+        // float w = c0.z + t * ( (float)c1.w - (float)c0.w);
         uchar4 res;
         res.x = x;
         res.y = y;
         res.z = z;
-        res.w = 0xFF;
+        res.w = min(c0.w, c1.w);
         return res;
       }
 
@@ -430,7 +432,7 @@ namespace pcl
       __device__ __forceinline__ void
       store_point (MeshPointType *ptr, int index, const float3& point, const uchar4 col) const {
         // uint32_t rgba = 0xffFFffFF; // alpha sits to the most left
-        uint32_t rgba =   (( (uint32_t) 0xff)  << 24) // alpha sits to the most left
+        uint32_t rgba =   (( (uint32_t) col.w) << 24) // alpha sits to the most left
                         + (( (uint32_t) col.x) << 16)
                         + (( (uint32_t) col.y) <<  8)
                         + (( (uint32_t) col.z));

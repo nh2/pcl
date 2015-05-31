@@ -302,10 +302,25 @@ boost::shared_ptr<pcl::PolygonMesh> convertToMesh(const DeviceArray<float4>& dev
   if (device_triangles.empty())
       return boost::shared_ptr<pcl::PolygonMesh>();
 
-  vector<float4> triangles(device_triangles.size());
-  device_triangles.download(triangles);
+  vector<float4> dirty_triangles(device_triangles.size());
+  device_triangles.download(dirty_triangles);
+
+  vector<float4> triangles(dirty_triangles.size());
+  for (int i = 0; i < dirty_triangles.size(); i += 3) {
+    pcl::PointXYZRGBA pt1, pt2, pt3;
+    pt1.rgb = dirty_triangles[i].w;
+    pt2.rgb = dirty_triangles[i+1].w;
+    pt3.rgb = dirty_triangles[i+2].w;
+    if (pt1.a != 0 && pt2.a != 0 && pt3.a != 0) {
+      triangles.push_back(dirty_triangles[i]);
+      triangles.push_back(dirty_triangles[i+1]);
+      triangles.push_back(dirty_triangles[i+2]);
+    }
+  }
 
   pcl::PointCloud<pcl::PointXYZRGB> cloud((int)triangles.size(), 1);
+
+
 
   for (int i = 0; i < triangles.size(); ++i)
   {
