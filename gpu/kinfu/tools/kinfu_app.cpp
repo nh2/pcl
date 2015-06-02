@@ -399,8 +399,9 @@ struct ImageView
         viewerScene_ = pcl::visualization::ImageViewer::Ptr(new pcl::visualization::ImageViewer);
         // viewerDepth_ = pcl::visualization::ImageViewer::Ptr(new pcl::visualization::ImageViewer);
 
-        viewerScene_->setWindowTitle ("View3D from ray tracing");
+        viewerScene_->setWindowTitle ("3D Scan View");
         viewerScene_->setPosition (0, 0);
+        viewerScene_->setSize (320, 240);
         // viewerDepth_->setWindowTitle ("Kinect Depth stream");
         // viewerDepth_->setPosition (640, 0);
         //viewerColor_.setWindowTitle ("Kinect RGB stream");
@@ -427,8 +428,21 @@ struct ImageView
 
     int cols;
     view_device_.download (view_host_, cols);
+
+    // Scale down image
+    //vector<KinfuTracker::PixelRGB> view_host_half(view_host_.size() / 4);
+    vector<KinfuTracker::PixelRGB> view_host_half(320*240);
+    for (size_t i = 0; i < 640/2; i++)
+    {
+      for (size_t k = 0; k < 480/2; k++)
+      {
+        view_host_half[k * (640/2) + i] = view_host_[(k*2) * 640 + (i*2)];
+      }
+    }
+
     if (viz_)
-        viewerScene_->showRGBImage (reinterpret_cast<unsigned char*> (&view_host_[0]), view_device_.cols (), view_device_.rows ());    
+        // viewerScene_->showRGBImage (reinterpret_cast<unsigned char*> (&view_host_[0]), view_device_.cols (), view_device_.rows ());    
+        viewerScene_->showRGBImage (reinterpret_cast<unsigned char*> (&view_host_half[0]), view_device_.cols () / 2, view_device_.rows () / 2);
 
     //viewerColor_.showRGBImage ((unsigned char*)&rgb24.data, rgb24.cols, rgb24.rows);
 
