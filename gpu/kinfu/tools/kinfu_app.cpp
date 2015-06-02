@@ -1005,18 +1005,29 @@ struct KinFuApp
     pcl::transformPointCloud(*before, *after, transform_translate);
   }
 
+  void nonEmptyOrExit(pcl::PointCloud<pcl::PointXYZRGB> mesh) {
+    if (mesh.size() == 0) {
+      cout << "Empty mesh, exiting" << endl;
+      exit(0);
+    }
+  }
+
+  void nonEmptyOrExit2(pcl::PCLPointCloud2 cloud) {
+    if (cloud.data.size() == 0) {
+      cout << "Empty cloud 2, exiting" << endl;
+      exit(0);
+    }
+  }
+
   void
   prepareMesh()
   {
-    // Check if mesh is empty
+    if (!std::ifstream("mesh.ply")) {
+      cout << "mesh.ply file does not exist, exiting" << endl;
+      exit(0);
+    }
+
     pcl::PointCloud<PointXYZRGB> meshcloud_sane;
-    fromPCLPointCloud2(scene_cloud_view_.mesh_ptr_->cloud, meshcloud_sane);
-    /*
-	if (meshcloud_sane.size() < 0) {
-      // File empty, do something
-	  return;
-	}
-    */
 
     // Copy mesh to dated file
 	std::string date = getDate();
@@ -1037,6 +1048,7 @@ struct KinFuApp
     pcl::PolygonMesh mesh;
     pcl::io::loadPLYFile("mesh-rotated.asc.ply", mesh);
     fromPCLPointCloud2(mesh.cloud, meshcloud_sane);
+    nonEmptyOrExit(meshcloud_sane);
 
     // Scale it
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr before_scaling(new pcl::PointCloud<pcl::PointXYZRGB>());
@@ -1045,12 +1057,14 @@ struct KinFuApp
     scaleMesh(before_scaling, after_scaling);
     meshcloud_sane = *after_scaling;
     cout << "Scaled size " << meshcloud_sane.size() << endl;
+    nonEmptyOrExit(meshcloud_sane);
 
     // Crop face from nose
     cout << "Cropping face from nose" << endl;
     PointXYZRGB nose = findNose(meshcloud_sane);
     meshcloud_sane = cropFaceFromNose(meshcloud_sane, nose);
     cout << "Cropped size " << meshcloud_sane.size() << endl;
+    nonEmptyOrExit(meshcloud_sane);
 
     // Clean polygons
     cout << "Cleaning polygons" << endl;
@@ -1063,7 +1077,9 @@ struct KinFuApp
     pcl::PolygonMesh mesh_cleaned;
     pcl::surface::SimplificationRemoveUnusedVertices simplifier;
     simplifier.simplify(mesh, mesh_cleaned);
+    nonEmptyOrExit2(mesh_cleaned.cloud);
     fromPCLPointCloud2(mesh_cleaned.cloud, meshcloud_sane);
+    nonEmptyOrExit(meshcloud_sane);
 
     // Translate
     cout << "Translate mesh" << endl;
@@ -1072,6 +1088,7 @@ struct KinFuApp
     *before_translating = meshcloud_sane;
     translateMesh(nose, before_translating, after_translating);
     meshcloud_sane = *after_translating;
+    nonEmptyOrExit(meshcloud_sane);
 
     toPCLPointCloud2(meshcloud_sane, mesh_cleaned.cloud);
 
@@ -1089,6 +1106,12 @@ struct KinFuApp
   void
   processEtronStream()
   {
+    // Remove existing mesh file, if it exists.
+    if (std::ifstream("mesh.ply")) {
+      int res = remove("mesh.ply");
+      assert(res == 0);
+    }
+
     scene_cloud_view_.showMesh(kinfu_, integrate_colors_);
     writeMesh ((int)'7' - (int)'0');
     prepareMesh();
