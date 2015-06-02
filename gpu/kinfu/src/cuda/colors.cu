@@ -56,8 +56,12 @@ namespace pcl
         int z_step = VOLUME_Y * volume.step / sizeof(*pos);
 
 #pragma unroll
-        for (int z = 0; z < VOLUME_Z; ++z, pos += z_step)
-          *pos = make_uchar4 (255, 0, 0, 0);
+        for (int z = 0; z < VOLUME_Z; ++z, pos += z_step) {
+          // TODO we should avoid displaying the voxels with no color but structure
+          // in the ray caster, or at least highlight them better (for example
+          // by making them of a configurable color).
+          *pos = make_uchar4(0, 0, 0, 0);
+        }
       }
     }
   }
