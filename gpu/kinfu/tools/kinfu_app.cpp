@@ -1882,6 +1882,12 @@ main (int argc, char* argv[])
 
   KinFuApp app (*capture, volume_size, icp, visualization, pose_processor, start_at_side);
   app.parseConfig("config.txt");
+  std::vector<float> intrinsics;
+  intrinsics.push_back(app.camera_fx);
+  intrinsics.push_back(app.camera_fy);
+  intrinsics.push_back(app.principal_cx);
+  intrinsics.push_back(app.principal_cy);
+  app.setDepthIntrinsics(intrinsics);
 
   app.kinfu_.acceptAngle() = app.accept_angle_deg;
 
