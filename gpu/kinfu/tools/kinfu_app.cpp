@@ -401,7 +401,6 @@ struct ImageView
 
         viewerScene_->setWindowTitle ("3D Scan View");
         viewerScene_->setPosition (0, 0);
-        viewerScene_->setSize (320, 240);
         // viewerDepth_->setWindowTitle ("Kinect Depth stream");
         // viewerDepth_->setPosition (640, 0);
         //viewerColor_.setWindowTitle ("Kinect RGB stream");
@@ -409,7 +408,7 @@ struct ImageView
   }
 
   void
-  showScene (KinfuTracker& kinfu, const PtrStepSz<const KinfuTracker::PixelRGB>& rgb24, bool registration, Eigen::Affine3f* pose_ptr = 0)
+  showScene (KinfuTracker& kinfu, const PtrStepSz<const KinfuTracker::PixelRGB>& rgb24, bool registration, int ray_tracer_scale, Eigen::Affine3f* pose_ptr = 0)
   {
     if (pose_ptr)
     {
@@ -430,19 +429,19 @@ struct ImageView
     view_device_.download (view_host_, cols);
 
     // Scale down image
-    //vector<KinfuTracker::PixelRGB> view_host_half(view_host_.size() / 4);
-    vector<KinfuTracker::PixelRGB> view_host_half(320*240);
-    for (size_t i = 0; i < 640/2; i++)
+    int scale = pow((int) 2, ray_tracer_scale);
+    vector<KinfuTracker::PixelRGB> view_host_half((640/scale)*(480/scale));
+    for (size_t i = 0; i < 640/scale; i++)
     {
-      for (size_t k = 0; k < 480/2; k++)
+      for (size_t k = 0; k < 480/scale; k++)
       {
-        view_host_half[k * (640/2) + i] = view_host_[(k*2) * 640 + (i*2)];
+        view_host_half[k * (640/scale) + i] = view_host_[(k*scale) * 640 + (i*scale)];
       }
     }
 
     if (viz_)
         // viewerScene_->showRGBImage (reinterpret_cast<unsigned char*> (&view_host_[0]), view_device_.cols (), view_device_.rows ());    
-        viewerScene_->showRGBImage (reinterpret_cast<unsigned char*> (&view_host_half[0]), view_device_.cols () / 2, view_device_.rows () / 2);
+        viewerScene_->showRGBImage (reinterpret_cast<unsigned char*> (&view_host_half[0]), view_device_.cols () / scale, view_device_.rows () / scale);
 
     //viewerColor_.showRGBImage ((unsigned char*)&rgb24.data, rgb24.cols, rgb24.rows);
 
@@ -1256,7 +1255,7 @@ struct KinFuApp
     if (has_image)
     {
       Eigen::Affine3f viewer_pose = getViewerPose(*scene_cloud_view_.cloud_viewer_);
-      image_view_.showScene (kinfu_, rgb24, registration_, independent_camera_ ? &viewer_pose : 0);
+      image_view_.showScene (kinfu_, rgb24, registration_, ray_tracer_scale, independent_camera_ ? &viewer_pose : 0);
     }    
 
     if (current_frame_cloud_view_)
@@ -1612,6 +1611,8 @@ struct KinFuApp
   float radius_from_middle = 25.f;
   float nose_y_displacement = -15.f;
   float accept_angle_deg = 90.f;
+
+  int ray_tracer_scale = 1;
   
   pcl::Grabber& capture_;
   KinfuTracker kinfu_;
@@ -1896,6 +1897,11 @@ main (int argc, char* argv[])
 
   KinFuApp app (*capture, volume_size, icp, visualization, pose_processor, start_at_side);
   app.parseConfig("config.txt");
+  std::string ray_tracer_scale_str;
+  if (pc::parse_argument(argc, argv, "-ray_tracer_scale", ray_tracer_scale_str))
+  {
+    app.ray_tracer_scale = atoi(ray_tracer_scale_str.c_str());
+  }
   std::vector<float> intrinsics;
   intrinsics.push_back(app.camera_fx);
   intrinsics.push_back(app.camera_fy);
