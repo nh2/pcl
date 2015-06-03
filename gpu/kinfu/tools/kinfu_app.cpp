@@ -1121,6 +1121,8 @@ struct KinFuApp
   void
   processEtronStream()
   {
+    image_view_.viewerScene_->setPosition(-1000, 0);
+
     // Remove existing mesh file, if it exists.
     if (std::ifstream("mesh.ply")) {
       int res = remove("mesh.ply");
@@ -1683,7 +1685,11 @@ struct KinFuApp
       case (int)'7': case (int)'8': app->writeMesh (key - (int)'0'); break;
       case (int)'1': case (int)'2': case (int)'3': app->writeCloud (key - (int)'0'); break;      
       case '*': app->image_view_.toggleImagePaint (); break;
-	  case (int)' ': app->capture_.stop(); break;
+	  case (int)' ':
+        // Hide 3D ray tracer window
+        app->image_view_.viewerScene_->setPosition(-1000, 0);
+        app->capture_.stop();
+        break;
 
       case (int)'x': case (int)'X':
         app->scan_volume_ = !app->scan_volume_;
