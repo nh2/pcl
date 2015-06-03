@@ -1763,7 +1763,7 @@ writePolygonMeshFile (int format, const pcl::PolygonMesh& mesh)
   if (format == KinFuApp::MESH_PLY)
   {
     cout << "Saving mesh to to 'mesh.ply'... " << flush;
-    pcl::io::savePLYFile("mesh.ply", mesh);		
+    pcl::io::savePLYFileBinary("mesh.ply", mesh);
   }
   else /* if (format == KinFuApp::MESH_VTK) */
   {
