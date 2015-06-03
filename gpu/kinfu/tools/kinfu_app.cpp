@@ -799,7 +799,9 @@ struct KinFuApp
 		  else if (!strcmp(tag, "nose_y_displacement"))
 			  nose_y_displacement = val;
           else if (!strcmp(tag, "accept_angle_deg"))
-              accept_angle_deg = val;
+            accept_angle_deg = val;
+          else if (!strcmp(tag, "z_scaling"))
+            z_scaling = val;
 		  else
 			  std::cerr << "WARNING: invalid configuration entry " << tag << std::endl;
 	  }
@@ -981,7 +983,7 @@ struct KinFuApp
     Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
     transform(0, 0) = size_multiplier;
     transform(1, 1) = size_multiplier;
-    transform(2, 2) = size_multiplier;
+    transform(2, 2) = size_multiplier * z_scaling;
     //    (row, column)
     pcl::transformPointCloud(*before, *after, transform);
   }
@@ -1611,6 +1613,7 @@ struct KinFuApp
   float radius_from_middle = 25.f;
   float nose_y_displacement = -15.f;
   float accept_angle_deg = 90.f;
+  float z_scaling = 1.f;
 
   int ray_tracer_scale = 1;
   
