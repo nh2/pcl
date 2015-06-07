@@ -45,6 +45,10 @@
 #include <pcl/console/parse.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/asio.hpp>
+#include <boost/thread.hpp>
+#include <boost/thread/condition.hpp>
+#include <boost/thread/mutex.hpp>
 
 #include <pcl/gpu/kinfu/kinfu.h>
 #include <pcl/gpu/kinfu/raycaster.h>
@@ -101,6 +105,8 @@ using namespace pcl;
 using namespace pcl::gpu;
 using namespace Eigen;
 namespace pc = pcl::console;
+
+using boost::asio::ip::tcp;
 
 int fixPlyFile(const char *meshIn, const char *meshOut);
 
@@ -388,12 +394,43 @@ struct CurrentFrameCloudView
   visualization::PCLVisualizer cloud_viewer_;
 };
 
+
+class semaphore
+{
+private:
+  boost::mutex mutex_;
+  boost::condition_variable condition_;
+  unsigned long count_;
+
+public:
+  semaphore()
+    : count_()
+  {}
+
+  void notify()
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    ++count_;
+    condition_.notify_one();
+  }
+
+  void wait()
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    while (!count_)
+      condition_.wait(lock);
+    --count_;
+  }
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct ImageView
 {
-  ImageView(int viz) : viz_(viz), paint_image_ (false), accumulate_views_ (false)
+
+  ImageView(int viz) : viz_(viz), paint_image_(false), accumulate_views_(false)
   {
+
     if (viz_)
     {
         viewerScene_ = pcl::visualization::ImageViewer::Ptr(new pcl::visualization::ImageViewer);
@@ -404,6 +441,75 @@ struct ImageView
         // viewerDepth_->setWindowTitle ("Kinect Depth stream");
         // viewerDepth_->setPosition (640, 0);
         //viewerColor_.setWindowTitle ("Kinect RGB stream");
+    }
+
+    view_host_ = vector<KinfuTracker::PixelRGB>(640 * 480);
+
+    raycast_sink_thread_ = boost::thread(&ImageView::raycastSink, this);
+  }
+
+  void
+  raycastSink ()
+  {
+    using namespace boost;
+
+    asio::io_service io_service;
+
+    tcp::acceptor * acceptor;
+    try
+    {
+      acceptor = new tcp::acceptor(io_service, tcp::endpoint(tcp::v4(), 1237));
+    }
+    catch (std::exception& e)
+    {
+      cerr << "raycastSink exception: " << e.what() << endl;
+      throw e;
+    }
+    acceptor->set_option(asio::ip::tcp::acceptor::reuse_address(true));
+
+    boost::array<unsigned char, 1> dummy_resp_buf;
+    boost::array<unsigned char, 640 * 480 * 3> *rgb_buf_ptr = new boost::array<unsigned char, 640 * 480 * 3>;
+
+    // socket accept loop
+  accept_loop:
+    while (true)
+    {
+      tcp::socket socket(io_service);
+      std::cout << "raycastSink: Waiting for client" << std::endl;
+      acceptor->accept(socket);
+      std::cout << "raycastSink: Accepted client" << std::endl;
+
+      bool continue_grabbing = true;
+      while (continue_grabbing)
+      {
+        int t0 = GetTickCount();
+        // Get the frame to send
+        boost::system::error_code error_code;
+        
+        // raycast_sink_new_frame_semaphore_.wait();
+
+        size_t nBytes = view_host_.size() * sizeof(view_host_[0]);
+        assert(nBytes == 640 * 480 * 3);
+        asio::write(socket, asio::buffer((const void *)&view_host_[0], nBytes), asio::transfer_at_least(nBytes), error_code);
+        
+        if (error_code)
+        {
+          socket.close();
+          cerr << "raycastSink: write failed" << endl;
+          goto accept_loop;
+        }
+        
+        // Flush connection (Nagle's algorithm)
+        socket.set_option(asio::ip::tcp::no_delay(true));
+        socket.set_option(asio::ip::tcp::no_delay(false));
+
+        // Wait for reply
+        asio::read(socket, asio::buffer(dummy_resp_buf), boost::asio::transfer_at_least(dummy_resp_buf.size()), error_code);
+
+        int t1 = GetTickCount();
+        Sleep(min(100, t1 - t0));
+      }
+
     }
   }
 
@@ -425,8 +531,11 @@ struct ImageView
     }
 
 
+    // Send raycast output to the socket
     int cols;
     view_device_.download (view_host_, cols);
+
+    // raycast_sink_new_frame_semaphore_.notify();
 
     // Scale down image
     int scale = pow((int) 2, ray_tracer_scale);
@@ -498,6 +607,9 @@ struct ImageView
   RayCaster::Ptr raycaster_ptr_;
 
   KinfuTracker::DepthMap generated_depth_;
+
+  boost::thread raycast_sink_thread_;
+  semaphore raycast_sink_new_frame_semaphore_;
   
 #ifdef HAVE_OPENCV
   vector<cv::Mat> views_;
